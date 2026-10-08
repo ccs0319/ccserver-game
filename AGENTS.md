@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 0.2.0
+version: 0.3.0
 status: bootstrap
 last_updated: 2026-10-08
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -143,6 +143,7 @@ cargo xtask list                           # 列出 Lua C 扩展与锁定状态
 make db-up                                 # 起本地 Redis/MySQL/PostgreSQL/Mongo（docker compose）
 make run                                   # 前台运行 example_server.lua
 make start / stop / restart / status       # 后台运行（pidfile + logs/）
+make backup / restore                      # 数据库备份 / 恢复（scripts/backup.sh、restore.sh）
 scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + rebase）
 ```
 
@@ -180,6 +181,8 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 ## §7 架构要点
 
+- **进程模型**：**单进程、多线程**。一个 `moon_rs` 二进制 = 一个 OS 进程；Tokio 多线程运行时
+  + `unique` actor 各自独占 OS 线程。跨进程/多节点用 `cluster` 模块（每个节点是独立进程）。
 - **Actor 模型**：Lua service 通过类型化消息（`PTYPE_*`）通信；Rust 负责异步 I/O。
 - **unique vs 非 unique**：`unique = true` 的 actor 跑在专用 OS 线程 + 阻塞接收；否则是 Tokio task。
 - **每-actor 内存**：自定义 Lua 分配器按 actor 记账，支持内存上限。
@@ -196,7 +199,8 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 - [x] **P0 基线**：fork moon_rs、验证构建、建立自更新 AGENTS.md 与记忆层。
 - [~] **P1 工程化**：`rust-toolchain.toml` 已定；待补 fmt/clippy/test CI、贡献规范。
-- [~] **P2 骨架**：配置热更（`moon.config`）、一键启停脚本、Makefile 已就绪；待补启动脚手架模板。
+- [~] **P2 骨架**：配置热更（`moon.config`）、一键启停脚本、数据备份/恢复（`scripts/backup.sh`/`restore.sh`）、
+  `Makefile`、`docker-compose.yml`（含持久化卷）已就绪；待补启动脚手架模板。
 - [ ] **P3 网络层**：TCP/KCP 帧协议、session 管理、协议编解码（protobuf）。
 - [~] **P4 游戏通用层**：AOI/math 已有纯 Rust 基础；待补实体/房间/事件总线/匹配/排行。
 - [~] **P5 数据层**：统一 `moon.db`（Redis + SQLx[MySQL/PG/SQLite] + 可选 Mongo/pg）、
@@ -232,5 +236,6 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-08 | 0.3.0 | 运维：数据库备份/恢复（`scripts/backup.sh`/`restore.sh`，保留策略）、`docker-compose.yml` 命名卷持久化、`docs/backup.md`；明确单进程多线程模型。 |
 | 2026-10-08 | 0.2.0 | 数据层：统一 `moon.db`（Redis+SQLx+可选 Mongo/pg）、结构迁移 `moon.db.migration`、配置热更 `moon.config`、代码热更 `moon.hotreload`；基础设施：`docker-compose.yml`、`scripts/*`、`Makefile`；确立 fork+upstream rebase 同步策略。 |
 | 2026-10-08 | 0.1.0 | 初始化：fork moon_rs@272c9b8，建立自更新 AGENTS.md + docs/agent 记忆层 + `xtask agent-check`。 |

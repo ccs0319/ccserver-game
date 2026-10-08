@@ -59,3 +59,16 @@
 - Consequences: 每个 actor 各自轮询/热更自身状态，跨服务重载需另行广播（列为 TODO）；
   `hotfix` 对 upvalue 敏感，热更代码需保持函数原型兼容。
 
+## ADR-006: 数据库备份/恢复以脚本 + 命名卷实现，生产另行加保
+
+- Date: 2026-10-08
+- Status: Accepted
+- Context: 需要数据库的定期备份能力。此前 `docker-compose.yml` 无命名卷，数据仅存于容器可写层，
+  `docker rm` 即丢失；也没有备份/恢复工具。
+- Decision: 为 compose 增加命名卷持久化；提供 `scripts/backup.sh`（mysqldump / pg_dump /
+  mongodump / redis-cli，时间戳目录 + 保留策略 `CCS_BACKUP_KEEP`）与 `scripts/restore.sh`；
+  定时化交给宿主 cron（见 `docs/backup.md`），异地/生产级备份（binlog、WAL 归档、副本、云托管）在文档中给出指引。
+- Consequences: 本地开发即可一键备份/恢复（实测 MySQL/PG 还原成功）；Redis 恢复仅支持容器模式；
+  生产环境仍需额外的 PITR/副本/异地存储，脚本本身不覆盖这些。
+
+

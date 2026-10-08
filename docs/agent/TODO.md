@@ -21,6 +21,8 @@
 - [x] 配置加载与热更（`moon.config`）。
 - [x] 统一日志（上游 logger）+ 定时器。
 - [x] 一键启停脚本 + Makefile + `docker-compose.yml`。
+- [x] 数据备份/恢复 `scripts/backup.sh` / `restore.sh`（含保留策略、命名卷持久化）。
+- [ ] 备份定时化（cron / sidecar）与异地存储（S3/rsync）。
 - [ ] 启动脚手架模板（gate/login/world 服务模板）。
 - [ ] 优雅退出流程梳理与文档化。
 

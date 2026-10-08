@@ -7,6 +7,9 @@
 /logs
 *.pid
 
+# database backups (scripts/backup.sh)
+/backups
+
 # local sqlite databases created by tests
 *.db
 *.db-journal

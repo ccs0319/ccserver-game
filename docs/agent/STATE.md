@@ -27,7 +27,8 @@ phase: P5
 - [x] 结构迁移 `lualib/moon/db/migration.lua`：`run/status`，`schema_migrations` 记账，幂等。
 - [x] 配置热更 `lualib/moon/config.lua`（`load`/`watch`）；代码热更 `lualib/moon/hotreload.lua`（基于 `hotfix`）。
 - [x] `namesearch` 从手写 pg 迁移到 SQLx（PostgreSQL 后端）。
-- [x] 基础设施：`docker-compose.yml`、`scripts/{start,stop,restart,status,dev,db-up,db-down,db-reset,update-upstream}.sh`、`Makefile`。
+- [x] 基础设施：`docker-compose.yml`（含命名卷持久化）、`scripts/{start,stop,restart,status,dev,db-up,db-down,db-reset,backup,restore,update-upstream}.sh`、`Makefile`。
+- [x] 数据备份/恢复：`scripts/backup.sh`（mysqldump/pg_dump/mongodump/redis，含保留策略）、`scripts/restore.sh`；实测 MySQL/PG 还原成功。
 - [x] 集成测试（实测通过）：`test_db_stack`（Redis+SQLite+MySQL+PG）、`test_migration`、`test_hotreload`。
 - [x] 修复上游 SQLite 前缀判断，支持 `sqlite::memory:`（`lua_sqlx.rs`）。
 
@@ -47,6 +48,8 @@ phase: P5
 - Lua C API 互操作存在大量 `unsafe`；递归操作前需 `lua_checkstack`。
 - 上游 README 声称 “targets Rust nightly”，实测 **stable 1.96.0 可编译通过**；本仓库固定 stable。
 - 上游 CI 仅做 release 构建，无 fmt/clippy/test——本仓库需在 P1 补齐。
+- **进程模型**：单进程、多线程（Tokio + unique actor 独占线程）；多节点需用 `cluster`（各节点独立进程）。
+- 备份脚本的 **Redis 恢复仅支持容器模式**（`ccs-redis`，copy rdb + restart）；宿主机 Redis 需手动停服换 `dump.rdb`。
 
 ## 上游同步
 

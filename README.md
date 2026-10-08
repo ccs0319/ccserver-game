@@ -70,6 +70,7 @@ cargo xtask agent-check          # 校验 AGENTS.md / docs/agent 记忆层
 
 - 开发指南（**唯一权威、自更新**）：[`AGENTS.md`](./AGENTS.md)
 - 当前状态：`docs/agent/STATE.md` · 任务队列：`docs/agent/TODO.md` · 决策记录：`docs/agent/DECISIONS.md`
+- 数据库层：[`docs/db.md`](docs/db.md)；备份/恢复：[`docs/backup.md`](docs/backup.md)
 - 模块文档：`docs/socket.md`、`docs/httpc.md`、`docs/httpd.md`、`docs/redis.md`、`docs/pg.md`、
   `docs/sqlx.md`、`docs/mongodb.md`、`docs/cluster.md`、`docs/grpc.md` 等。
 
