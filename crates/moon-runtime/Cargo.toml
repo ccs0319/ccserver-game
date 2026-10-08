@@ -9,13 +9,19 @@ edition = "2024"
 doctest = false
 
 [features]
-default = ["excel", "httpc", "httpd", "websocket", "pg", "redis", "cluster", "protobuf", "sqlx", "mongodb", "grpc"]
+# Recommended default DB surface: `redis` (cache/session/rank) + `sqlx`
+# (unified relational: MySQL / PostgreSQL / SQLite). `pg` (hand-written
+# PostgreSQL wire driver) and `mongodb` (document store) are opt-in extras.
+default = ["excel", "httpc", "httpd", "websocket", "redis", "cluster", "protobuf", "sqlx", "grpc"]
 excel = ["dep:calamine", "dep:csv"]
 httpc = ["dep:reqwest", "dep:httparse", "dep:percent-encoding", "dep:url"]
 httpd = ["dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-util", "dep:futures-util", "dep:httpdate"]
 sqlx = ["dep:sqlx", "dep:phf", "dep:uuid", "dep:futures-util"]
+# Optional document store (not in default; enable with `--features mongodb`).
 mongodb = ["dep:mongodb", "dep:futures-util"]
 websocket = ["dep:tokio-tungstenite", "dep:futures-util"]
+# Optional high-performance hand-written PostgreSQL wire driver. Most projects
+# should use `sqlx` instead; enable with `--features pg`.
 pg = ["dep:url"]
 redis = ["dep:url"]
 # gRPC client + server over HTTP/2 (tonic codec/framing on a hyper http2 listener);

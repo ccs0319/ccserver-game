@@ -1,3 +1,12 @@
 /target
 /clib
 .extensions
+
+# runtime artifacts (scripts/start.sh)
+/run
+/logs
+*.pid
+
+# local sqlite databases created by tests
+*.db
+*.db-journal

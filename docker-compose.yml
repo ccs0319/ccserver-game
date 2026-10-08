@@ -1,0 +1,61 @@
+# Local development dependencies for ccserver.
+#
+#   docker compose up -d      # start redis / mysql / postgres / mongo
+#   docker compose down       # stop
+#   docker compose down -v    # stop and wipe data
+#
+# Credentials here are for LOCAL DEVELOPMENT ONLY. Never reuse them in production.
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ccs-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mysql:
+    image: mysql:8
+    container_name: ccs-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "game"
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ccs-pg
+    environment:
+      POSTGRES_USER: "ccs"
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_DB: "game"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ccs -d game"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mongo:
+    image: mongo:7
+    container_name: ccs-mongo
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 30

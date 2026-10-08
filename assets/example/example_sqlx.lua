@@ -83,7 +83,7 @@ moon.async(function()
     print("cost", moon.clock() - st)
 
     ---sqlite
-    local sqlitedb = sqlx.connect("sqlite://memory:", "test2")
+    local sqlitedb = sqlx.connect("sqlite::memory:", "test2")
 
     print_r(sqlitedb:query("CREATE TABLE test (id INTEGER PRIMARY KEY, content TEXT);"))
     print_r(sqlitedb:query("INSERT INTO test (content) VALUES ('Hello, World!');"))

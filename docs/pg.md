@@ -2,6 +2,10 @@
 
 High-performance native PostgreSQL driver implementing the v3 wire protocol in Rust.
 
+> **Optional, not in the default build.** Prefer `moon.db.sqlx` for relational
+> databases (see [`db.md`](db.md)); enable this driver with `--features pg` when
+> you need a dependency-free, PostgreSQL-only fast path.
+
 ## Architecture
 
 ```

@@ -2,6 +2,9 @@
 
 Multi-database driver using the `sqlx` crate, supporting PostgreSQL, MySQL, and SQLite.
 
+> **Recommended relational driver** (enabled by default). For the unified
+> connection manager and the recommended database stack, see [`db.md`](db.md).
+
 ## Architecture
 
 ```

@@ -284,8 +284,11 @@ impl DatabasePool {
             )
             .await?;
             Ok(DatabasePool::Postgres(pool))
-        } else if database_url.starts_with("sqlite://") {
-            if !Sqlite::database_exists(database_url).await? {
+        } else if database_url.starts_with("sqlite:") {
+            // Accept both `sqlite:///path.db` (file) and `sqlite::memory:`
+            // (in-memory). `database_exists`/`create_database` are only needed
+            // for file-backed databases; skip them for in-memory URLs.
+            if !database_url.contains(":memory:") && !Sqlite::database_exists(database_url).await? {
                 Sqlite::create_database(database_url).await?;
             }
             let pool = connect_with_timeout(

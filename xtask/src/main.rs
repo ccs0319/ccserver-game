@@ -33,6 +33,10 @@ use std::process::Command;
 
 const MANIFEST_FILE: &str = "extensions.toml";
 const LOCK_FILE: &str = "extensions.lock";
+const AGENTS_FILE: &str = "AGENTS.md";
+const STATE_FILE: &str = "docs/agent/STATE.md";
+const TODO_FILE: &str = "docs/agent/TODO.md";
+const DECISIONS_FILE: &str = "docs/agent/DECISIONS.md";
 const CACHE_DIR: &str = ".extensions";
 const CLIB_DIR: &str = "clib";
 const MOON_BASE_CRATE: &str = "crates/moon-base";
@@ -124,6 +128,7 @@ fn run() -> Result<()> {
         Some("update") => cmd_update(&repo_root, &names),
         Some("list") => cmd_list(&repo_root),
         Some("clean") => cmd_clean(&repo_root, &names),
+        Some("agent-check") => cmd_agent_check(&repo_root),
         None => {
             print_usage();
             Ok(())
@@ -142,7 +147,8 @@ fn print_usage() {
          build [name...]    Fetch (per lock) + build + install Lua C extension(s) into clib/.\n  \
          update [name...]   Resolve each ref to a commit and write {LOCK_FILE}.\n  \
          list               Show the registry and lock status.\n  \
-         clean [name...]    Remove cached checkouts under {CACHE_DIR}/.\n\n\
+         clean [name...]    Remove cached checkouts under {CACHE_DIR}/.\n  \
+         agent-check        Validate AGENTS.md and docs/agent memory files.\n\n\
          With no name, the command applies to every extension in {MANIFEST_FILE}.\n\
          Flags: --offline (use cache only, never hit the network), --force (re-fetch)."
     );
@@ -241,6 +247,121 @@ fn cmd_clean(repo_root: &Path, names: &[String]) -> Result<()> {
         }
     }
     Ok(())
+}
+
+// --------------------------------------------------------------------------
+// agent-check: validate the self-updating memory layer
+// --------------------------------------------------------------------------
+
+/// Verify `AGENTS.md` and `docs/agent/*` exist and follow the format required by
+/// `AGENTS.md` §0, so the self-updating memory layer cannot silently rot.
+fn cmd_agent_check(repo_root: &Path) -> Result<()> {
+    let mut problems: Vec<String> = Vec::new();
+
+    let agents = read_required(repo_root, AGENTS_FILE, &mut problems);
+    let state = read_required(repo_root, STATE_FILE, &mut problems);
+    let todo = read_required(repo_root, TODO_FILE, &mut problems);
+    let decisions = read_required(repo_root, DECISIONS_FILE, &mut problems);
+
+    if let Some(agents) = &agents {
+        for key in ["version", "last_updated", "upstream_baseline"] {
+            if meta_field(agents, "agent-meta", key).is_none() {
+                problems.push(format!("{AGENTS_FILE}: agent-meta 缺少 `{key}`"));
+            }
+        }
+        for need in ["§0 自更新协议", "§8 路线图与状态", "§11 变更日志"] {
+            if !agents.contains(need) {
+                problems.push(format!("{AGENTS_FILE}: 缺少必需章节 `{need}`"));
+            }
+        }
+        if let Some(d) = meta_field(agents, "agent-meta", "last_updated") {
+            check_date(&d, &format!("{AGENTS_FILE} last_updated"), &mut problems);
+        }
+    }
+
+    if let Some(state) = &state {
+        match meta_field(state, "agent-state", "last_updated") {
+            Some(d) => check_date(&d, &format!("{STATE_FILE} last_updated"), &mut problems),
+            None => problems.push(format!("{STATE_FILE}: agent-state 缺少 `last_updated`")),
+        }
+        if meta_field(state, "agent-state", "phase").is_none() {
+            problems.push(format!("{STATE_FILE}: agent-state 缺少 `phase`"));
+        }
+    }
+
+    if let Some(decisions) = &decisions {
+        let adr_count = decisions
+            .lines()
+            .filter(|l| l.trim_start().starts_with("## ADR-"))
+            .count();
+        if adr_count == 0 {
+            problems.push(format!("{DECISIONS_FILE}: 未发现 `## ADR-NNN` 条目"));
+        }
+        if decisions.matches("- Date:").count() < adr_count {
+            problems.push(format!("{DECISIONS_FILE}: {adr_count} 条 ADR 中 `- Date:` 数量不足"));
+        }
+        if decisions.matches("- Status:").count() < adr_count {
+            problems.push(format!("{DECISIONS_FILE}: {adr_count} 条 ADR 中 `- Status:` 数量不足"));
+        }
+    }
+
+    if let Some(todo) = &todo {
+        if !todo.contains("- [") {
+            problems.push(format!("{TODO_FILE}: 未发现任务复选框 `- [ ]`"));
+        }
+    }
+
+    if problems.is_empty() {
+        println!("agent-check: OK");
+        Ok(())
+    } else {
+        for p in &problems {
+            eprintln!("agent-check: {p}");
+        }
+        Err(format!("agent-check 失败：{} 个问题", problems.len()).into())
+    }
+}
+
+fn read_required(root: &Path, rel: &str, problems: &mut Vec<String>) -> Option<String> {
+    match std::fs::read_to_string(root.join(rel)) {
+        Ok(text) => Some(text),
+        Err(e) => {
+            problems.push(format!("{rel}: 无法读取 ({e})"));
+            None
+        }
+    }
+}
+
+/// Read `key: value` from an HTML-comment metadata block `<!-- <tag> ... -->`.
+fn meta_field(text: &str, tag: &str, key: &str) -> Option<String> {
+    let start = text.find(&format!("<!-- {tag}"))?;
+    let rest = &text[start..];
+    let end = rest.find("-->")?;
+    for line in rest[..end].lines() {
+        if let Some((k, v)) = line.split_once(':') {
+            if k.trim() == key {
+                return Some(v.trim().to_string());
+            }
+        }
+    }
+    None
+}
+
+fn check_date(d: &str, what: &str, problems: &mut Vec<String>) {
+    let parts: Vec<&str> = d.split('-').collect();
+    let shaped = parts.len() == 3
+        && parts[0].len() == 4
+        && parts[1].len() == 2
+        && parts[2].len() == 2
+        && parts.iter().all(|p| p.chars().all(|c| c.is_ascii_digit()));
+    let in_range = shaped && {
+        let month: u32 = parts[1].parse().unwrap_or(0);
+        let day: u32 = parts[2].parse().unwrap_or(0);
+        (1..=12).contains(&month) && (1..=31).contains(&day)
+    };
+    if !in_range {
+        problems.push(format!("{what}: `{d}` 不是合法 YYYY-MM-DD 日期"));
+    }
 }
 
 // --------------------------------------------------------------------------
