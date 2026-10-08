@@ -8,7 +8,7 @@
 - [x] 自更新 `AGENTS.md` + `docs/agent/` 记忆层 + `cargo xtask agent-check`。
 - [x] `cargo check --workspace` 通过（stable 1.96.0）。
 - [x] `git init` + 提交 + 推送。
-- [ ] 重建历史为「以上游基线为父提交」，启用 `scripts/update-upstream.sh` 的 rebase 流程。
+- [x] 重建历史为「以上游基线为父提交」，启用 `scripts/update-upstream.sh` 的 rebase 流程。
 
 ## P1 — 工程化
 

@@ -14,11 +14,12 @@ phase: P5
 
 ## 进行中
 
-- [ ] 将仓库历史重建为「以上游基线 commit 为父提交」，使 `git rebase upstream/main` 可用。
 - [ ] 补 CI（fmt/clippy/test）与贡献规范（P1）。
 
 ## 已完成
 
+- [x] 仓库历史重建为「以上游基线 commit 为父提交」（`272c9b8 → 2bcc752`），
+  `scripts/update-upstream.sh` 的 fetch+rebase 流程已验证可用。
 - [x] fork `moon_rs@272c9b8` 作为基线，建立自更新 `AGENTS.md` + `docs/agent/` 记忆层 + `xtask agent-check`。
 - [x] `rust-toolchain.toml` 固定 stable；`cargo check --workspace` 通过（1.96.0）。
 - [x] 统一数据库管理器 `lualib/moon/db.lua`：`db.setup{redis,sql,mongo}` + 命名句柄 + `close_all`。
