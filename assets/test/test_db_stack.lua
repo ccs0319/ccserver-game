@@ -106,6 +106,15 @@ moon.async(function()
         sql_roundtrip("pg", db.sql("pg"), true)
     end
 
+    -- Health probes + backend detection
+    check(db.health("redis", "cache"), "redis health")
+    check(db.health("sql", "sqlite"), "sqlite health")
+    check(db.health("sql", "mysql"), "mysql health")
+    check(db.health("sql", "pg"), "pg health")
+    check(db.sql_backend("mysql") == "mysql", "mysql backend detected")
+    check(db.sql_backend("pg") == "postgres", "postgres backend detected")
+    check(db.sql_backend("sqlite") == "sqlite", "sqlite backend detected")
+
     db.close_all()
 
     print("=== result: " .. (failed == 0 and "ALL PASS" or (failed .. " FAILED")) .. " ===")

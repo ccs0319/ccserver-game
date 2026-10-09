@@ -40,6 +40,17 @@ local handles = {
     mongo = {},
 }
 
+--- Canonical backend per named sql connection ("mysql" | "postgres" | "sqlite").
+local backends = {}
+
+local function url_scheme(url)
+    local scheme = url:match("^(%a[%w+.-]*):") or ""
+    if scheme == "postgresql" then
+        return "postgres"
+    end
+    return scheme
+end
+
 local function require_redis()
     if not M._redis then
         M._redis = require("moon.db.redis")
@@ -91,9 +102,11 @@ end
 
 local function open_sql(cfg)
     local mod = require_sqlx()
-    local conn = mod.connect(assert(cfg.url, "moon.db: sql url required"), cfg.name,
+    local url = assert(cfg.url, "moon.db: sql url required")
+    local conn = mod.connect(url, cfg.name,
         cfg.timeout, cfg.max_connections, cfg.queue_capacity)
     handles.sql[cfg.name] = conn
+    backends[cfg.name] = url_scheme(url)
     return conn
 end
 
@@ -142,12 +155,92 @@ function M.mongo(name)
     return handles.mongo[name or "default"]
 end
 
+--- Canonical backend of a named sql connection: "mysql" | "postgres" | "sqlite".
+---@param name? string
+---@return string|nil
+function M.sql_backend(name)
+    return backends[name or "default"]
+end
+
+--- Probe one connection's liveness. Returns `ok, err`.
+---@param kind string "sql" | "redis" | "mongo"
+---@param name? string defaults to "default"
+---@return boolean ok
+---@return any err
+function M.health(kind, name)
+    name = name or "default"
+    if kind == "sql" then
+        local conn = handles.sql[name]
+        if not conn then
+            return false, "no sql connection: " .. name
+        end
+        local res = conn:query("SELECT 1")
+        if type(res) == "table" and res.kind then
+            return false, res.message
+        end
+        return true
+    elseif kind == "redis" then
+        local conn = handles.redis[name]
+        if not conn then
+            return false, "no redis connection: " .. name
+        end
+        local ok, res = pcall(function() return conn:ping() end)
+        if not ok then
+            return false, res
+        end
+        return res == "PONG", res
+    elseif kind == "mongo" then
+        local conn = handles.mongo[name]
+        if not conn then
+            return false, "no mongo connection: " .. name
+        end
+        return true
+    end
+    return false, "unknown kind: " .. tostring(kind)
+end
+
+--- Probe every managed connection. Returns a list of `{ kind, name, ok, err }`.
+---@return table
+function M.health_all()
+    local out = {}
+    for name in pairs(handles.redis) do
+        local ok, err = M.health("redis", name)
+        out[#out + 1] = { kind = "redis", name = name, ok = ok, err = err }
+    end
+    for name in pairs(handles.sql) do
+        local ok, err = M.health("sql", name)
+        out[#out + 1] = { kind = "sql", name = name, ok = ok, err = err }
+    end
+    for name in pairs(handles.mongo) do
+        local ok, err = M.health("mongo", name)
+        out[#out + 1] = { kind = "mongo", name = name, ok = ok, err = err }
+    end
+    return out
+end
+
+--- Aggregated pool statistics per driver (best-effort; absent drivers are nil).
+---@return table `{ redis=..., sql=..., mongo=... }`
+function M.stats()
+    local out = {}
+    if M._redis then
+        out.redis = M._redis.stats()
+    end
+    if M._sqlx then
+        out.sql = M._sqlx.stats()
+    end
+    if M._mongodb then
+        out.mongo = M._mongodb.stats()
+    end
+    return out
+end
+
 --- Close every managed connection and clear the registry.
 function M.close_all()
     for _, c in pairs(handles.redis) do c:close() end
     for _, c in pairs(handles.sql) do c:close() end
     for _, c in pairs(handles.mongo) do c:close() end
     handles.redis, handles.sql, handles.mongo = {}, {}, {}
+    backends = {}
 end
 
 return M

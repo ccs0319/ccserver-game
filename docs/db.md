@@ -88,6 +88,40 @@ db.sql("stat"):query("SELECT * FROM player WHERE uid = $1", 1)
 - **pg** (optional) — wire-protocol driver with `query_params`, `pipe`,
   `insert_many`, `update_many`, SCRAM-SHA-256 auth. See `docs/pg.md`.
 
+## Health, stats & backend detection
+
+```lua
+db.health("sql", "game")      -- SELECT 1 probe -> true | false, err
+db.health("redis", "cache")   -- PING        -> true | false, err
+db.health_all()               -- [ { kind, name, ok, err }, ... ]
+db.stats()                    -- { redis=..., sql=..., mongo=... } pool stats
+db.sql_backend("game")        -- "mysql" | "postgres" | "sqlite"
+```
+
+`sql_backend` is derived from the URL scheme and is used by the migration runner to
+pick the right advisory lock.
+
+## Schema migrations
+
+`moon.db.migration` applies ordered files and records version + name + **checksum**:
+
+```lua
+local migration = require("moon.db.migration")
+local backend = db.sql_backend("game")            -- "mysql" | "postgres" | "sqlite"
+
+migration.run(db.sql("game"), "migrations", { backend = backend })
+migration.verify(db.sql("game"), "migrations")     -- detect edits to applied files
+migration.rollback(db.sql("game"), "migrations", 1, { backend = backend })
+migration.status(db.sql("game"))
+```
+
+- Files: `NNNN_name.lua` returning a list of up statements, or
+  `{ up = {...}, down = {...} }` for rollback.
+- `run` takes a backend **advisory lock** (MySQL `GET_LOCK`, PostgreSQL
+  `pg_advisory_lock`) so concurrent nodes cannot double-apply.
+- `verify` compares recorded checksums to the files, catching silent edits.
+- See `assets/migration/` for examples and `assets/test/test_migration.lua`.
+
 ## Building
 
 ```bash

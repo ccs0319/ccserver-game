@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 0.5.0
+version: 0.6.0
 status: bootstrap
 last_updated: 2026-10-09
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -217,7 +217,8 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 > **成熟化路线（M1–M6，详见 `docs/architecture.md`）**：
 > [x] M1 服务拓扑骨架（gateway/login/lobby/world + node/router/topology）·
 > [x] M2 统一协议与会话（`docs/protocol.md`：帧协议/版本协商/token/session/顶号）·
-> [ ] M3 数据/配置硬化 · [ ] M4 可观测性 ·
+> [x] M3 数据/配置硬化（`docs/config.md` + `docs/db.md`：分层配置+校验、迁移校验和+锁+回滚、db 健康检查）·
+> [ ] M4 可观测性 ·
 > [ ] M5 可靠性与安全 · [ ] M6 CI/CD 与压测。
 
 ---
@@ -247,6 +248,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-09 | 0.6.0 | M3 数据/配置硬化：`moon.config` 分层+校验+校验式热更（`docs/config.md`）；`moon.db.migration` 校验和+并发锁+verify+rollback；`moon.db` 健康检查/backend 探测/stats（`docs/db.md`）；`test_config`/`test_migration`/`test_db_stack` 扩展（实测通过）。 |
 | 2026-10-09 | 0.5.0 | M2 协议与会话：`ccserver/protocol.lua`（帧协议/版本协商/msgid 注册）、gateway 接入客户端（HELLO/LOGIN/ENTER/MOVE/PING）、session 绑定与顶号、`docs/protocol.md`、`test_gateway`（实测通过）。 |
 | 2026-10-09 | 0.4.0 | 服务拓扑骨架 M1：`lualib/ccserver/`（service/router/topology/node + 参考服务 gateway/login/lobby/world）、`app/`（main + config/topology）、`docs/architecture.md`、`test_topology`（实测通过）。 |
 | 2026-10-08 | 0.3.0 | 运维：数据库备份/恢复（`scripts/backup.sh`/`restore.sh`，保留策略）、`docker-compose.yml` 命名卷持久化、`docs/backup.md`；明确单进程多线程模型。 |

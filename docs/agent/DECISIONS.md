@@ -117,6 +117,28 @@
   传参时把额外参数并入 args 表，使 `table.unpack(args)` 位于调用末尾以完整展开。
 - Consequences: 网关处理器可安全调用后端服务；`service.lua` 分发同样用 `table.pack/unpack` 保留多返回值。
 
+## ADR-011: 配置采用分层合并 + schema 校验 + 校验式热更
+
+- Date: 2026-10-09
+- Status: Accepted
+- Context: 配置需要支持环境覆盖、结构约束与安全热更，避免错误配置在运行期才暴露。
+- Decision: `moon.config` 提供 `merge`（深合并）、`load_layered`（多文件左到右覆盖）、
+  `validate(cfg, schema)`（类型/必填校验，报错带路径）、`watch(..., { schema })`（非法热更被拒绝、保留旧值）。
+- Consequences: 配置错误在加载/热更时即被拒绝；密钥不入库（运行时从 env/secret 合并）；
+  事件驱动监听与跨服务广播仍待 M3 后续或 M4。
+
+## ADR-012: 迁移增加校验和、并发锁与回滚
+
+- Date: 2026-10-09
+- Status: Accepted
+- Context: 基础迁移可能被并发实例重复执行，且已应用迁移被静默修改无法察觉。
+- Decision: `schema_migrations` 记录 `checksum`（djb2，无依赖）；`run` 在给定 `opts.backend` 时取
+  数据库咨询锁（MySQL `GET_LOCK` / PostgreSQL `pg_advisory_lock`）避免并发双跑；
+  `verify` 比对已应用迁移的校验和以发现篡改；`rollback(n)` 执行迁移文件的 `down`。
+  旧表通过 `ALTER TABLE ADD COLUMN checksum` 平滑升级。
+- Consequences: 多节点启动安全；迁移文件改动可被检出；支持回滚。SQLite/未知后端不加锁（单写者）。
+
+
 
 
 

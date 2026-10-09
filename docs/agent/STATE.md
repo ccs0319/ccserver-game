@@ -2,18 +2,18 @@
 
 <!-- agent-state
 last_updated: 2026-10-09
-phase: M2
+phase: M3
 -->
 
 > 本文件由 agent 按 `AGENTS.md` §0 协议维护。只写事实、进度、阻塞与已知坑。
 
 ## 当前阶段
 
-**M2 协议与会话（已完成）**，进入 **M3 数据/配置硬化**。成熟化路线见 `docs/architecture.md`。
+**M3 数据/配置硬化（已完成）**，进入 **M4 可观测性**。成熟化路线见 `docs/architecture.md`。
 
 ## 进行中
 
-- [ ] M3：db 池化观测容错、分层配置+校验、迁移校验和+锁、热更事件化+广播。
+- [ ] M4：metrics（Prometheus）+ health/readiness + trace id。
 - [ ] 补 CI（fmt/clippy/test）与贡献规范（P1）。
 
 ## 已完成
@@ -25,7 +25,8 @@ phase: M2
 - [x] 运维：`docker-compose.yml`（命名卷）、`scripts/{start,stop,restart,status,dev,db-*,backup,restore,update-upstream}.sh`、`Makefile`、`docs/backup.md`。
 - [x] **M1 服务拓扑**：`lualib/ccserver/{service,router,topology,node}.lua` + 参考服务 `ccserver.services.{gateway,login,lobby,world}`；`app/main.lua` + `app/config/topology.lua`；`docs/architecture.md`。
 - [x] **M2 协议与会话**：`ccserver/protocol.lua`（帧协议/版本协商/msgid 注册）；gateway 接入客户端（HELLO/LOGIN/ENTER/MOVE/PING）、session 绑定与顶号；`docs/protocol.md`。
-- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`。
+- [x] **M3 数据/配置硬化**：`moon.config` 分层+校验+校验式热更；`moon.db.migration` 校验和+并发锁+verify+rollback；`moon.db` health/backend/stats。
+- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_config`。
 
 ## 阻塞项
 
