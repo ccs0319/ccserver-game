@@ -2,18 +2,18 @@
 
 <!-- agent-state
 last_updated: 2026-10-09
-phase: M1
+phase: M2
 -->
 
 > 本文件由 agent 按 `AGENTS.md` §0 协议维护。只写事实、进度、阻塞与已知坑。
 
 ## 当前阶段
 
-**M1 服务拓扑骨架（已完成）**，进入 **M2 协议与会话**。成熟化路线见 `docs/architecture.md`。
+**M2 协议与会话（已完成）**，进入 **M3 数据/配置硬化**。成熟化路线见 `docs/architecture.md`。
 
 ## 进行中
 
-- [ ] M2：统一帧协议 + 版本协商 + 登录 token + 网关 session 绑定 + 重连/顶号。
+- [ ] M3：db 池化观测容错、分层配置+校验、迁移校验和+锁、热更事件化+广播。
 - [ ] 补 CI（fmt/clippy/test）与贡献规范（P1）。
 
 ## 已完成
@@ -24,7 +24,8 @@ phase: M1
 - [x] 热更：`moon.config`（配置）+ `moon.hotreload`（hotfix 代码）。
 - [x] 运维：`docker-compose.yml`（命名卷）、`scripts/{start,stop,restart,status,dev,db-*,backup,restore,update-upstream}.sh`、`Makefile`、`docs/backup.md`。
 - [x] **M1 服务拓扑**：`lualib/ccserver/{service,router,topology,node}.lua` + 参考服务 `ccserver.services.{gateway,login,lobby,world}`；`app/main.lua` + `app/config/topology.lua`；`docs/architecture.md`。
-- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`。
+- [x] **M2 协议与会话**：`ccserver/protocol.lua`（帧协议/版本协商/msgid 注册）；gateway 接入客户端（HELLO/LOGIN/ENTER/MOVE/PING）、session 绑定与顶号；`docs/protocol.md`。
+- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`。
 
 ## 阻塞项
 
@@ -32,6 +33,9 @@ phase: M1
 
 ## 已知坑
 
+- **Lua 多返回值陷阱**：函数调用若非**最后一个参数**，其多返回值会被截断为 1 个。
+  `f(s, table.unpack(args), seq)` 只传一个 arg；应把额外值并入 args 后 `f(s, table.unpack(args))`。
+- **socket 回调内不可 yield**：消息回调协程被池化，处理器需 `moon.async` 派生协程后再 `moon.call`。
 - **服务是独立 actor（各自 lua_State）**：`cluster` 模块的 `NODE` 是 per-state 值，服务内不可依赖它做本地判断。
   `ccserver.router` 采用**本地优先**：按 `service_nodes` 映射比较自身 node，本地走 `moon.call`，远程才走 `cluster.call`。
   服务通过 `new_service` 的 `routing`/`node` 参数获得映射并 `router.configure`。

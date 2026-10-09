@@ -129,7 +129,7 @@ service.run({
 | Phase | Scope | Status |
 | --- | --- | --- |
 | **M1** | service topology skeleton (gateway/login/lobby/world, node, router, topology) | **done** |
-| M2 | unified frame protocol + versioning + login token + gateway session + reconnect/kick | planned |
+| **M2** | unified frame protocol + version negotiation + login token + gateway session + 顶号/reconnect (see `docs/protocol.md`) | **done** |
 | M3 | harden db/config/migration/hotreload (validation, locks, event-driven, broadcast) | planned |
 | M4 | observability: metrics (Prometheus), health/readiness, tracing ids | planned |
 | M5 | reliability & security: rate limit, circuit breaker, graceful drain, secrets, scheduled+verified backups | planned |

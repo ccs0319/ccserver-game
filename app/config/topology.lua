@@ -19,7 +19,7 @@ return {
     },
 
     services = {
-        gateway = { source = "ccserver.services.gateway", unique = true },
+        gateway = { source = "ccserver.services.gateway", unique = true, config = { addr = env("CCS_GATEWAY_ADDR", "0.0.0.0:9001") } },
         login   = { source = "ccserver.services.login",   unique = true },
         lobby   = { source = "ccserver.services.lobby",   unique = true },
         world   = { source = "ccserver.services.world",   unique = true },

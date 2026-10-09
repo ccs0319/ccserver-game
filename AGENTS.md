@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 0.4.0
+version: 0.5.0
 status: bootstrap
 last_updated: 2026-10-09
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -115,7 +115,7 @@ lualib/           # 面向用户的 Lua API 与封装（moon.lua、socket、http
   moon/db/*.lua   # 各驱动封装 + migration.lua（结构迁移）
   moon/config.lua # 配置加载 + 热重载
   moon/hotreload.lua # 基于 hotfix 的代码热更
-  ccserver/       # 游戏服务器框架层：service.lua/router.lua/topology.lua/node.lua + services/
+  ccserver/       # 游戏服务器框架层：service.lua/router.lua/topology.lua/node.lua/protocol.lua + services/
 app/              # 参考应用：main.lua（入口）+ config/topology.lua（服务拓扑）
 assets/           # 示例、benchmark、Lua 集成测试脚本；assets/migration/ 迁移示例
 scripts/          # 一键启停 / 依赖拉起 / 上游同步脚本
@@ -216,7 +216,8 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 > **成熟化路线（M1–M6，详见 `docs/architecture.md`）**：
 > [x] M1 服务拓扑骨架（gateway/login/lobby/world + node/router/topology）·
-> [ ] M2 统一协议与会话 · [ ] M3 数据/配置硬化 · [ ] M4 可观测性 ·
+> [x] M2 统一协议与会话（`docs/protocol.md`：帧协议/版本协商/token/session/顶号）·
+> [ ] M3 数据/配置硬化 · [ ] M4 可观测性 ·
 > [ ] M5 可靠性与安全 · [ ] M6 CI/CD 与压测。
 
 ---
@@ -246,6 +247,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-09 | 0.5.0 | M2 协议与会话：`ccserver/protocol.lua`（帧协议/版本协商/msgid 注册）、gateway 接入客户端（HELLO/LOGIN/ENTER/MOVE/PING）、session 绑定与顶号、`docs/protocol.md`、`test_gateway`（实测通过）。 |
 | 2026-10-09 | 0.4.0 | 服务拓扑骨架 M1：`lualib/ccserver/`（service/router/topology/node + 参考服务 gateway/login/lobby/world）、`app/`（main + config/topology）、`docs/architecture.md`、`test_topology`（实测通过）。 |
 | 2026-10-08 | 0.3.0 | 运维：数据库备份/恢复（`scripts/backup.sh`/`restore.sh`，保留策略）、`docker-compose.yml` 命名卷持久化、`docs/backup.md`；明确单进程多线程模型。 |
 | 2026-10-08 | 0.2.0 | 数据层：统一 `moon.db`（Redis+SQLx+可选 Mongo/pg）、结构迁移 `moon.db.migration`、配置热更 `moon.config`、代码热更 `moon.hotreload`；基础设施：`docker-compose.yml`、`scripts/*`、`Makefile`；确立 fork+upstream rebase 同步策略。 |

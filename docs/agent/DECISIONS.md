@@ -95,5 +95,28 @@
 - Consequences: 本地调用无 cluster 依赖、更快且可在无 discovery 的单机模式下工作；
   服务必须是 `unique = true`（按名寻址）。多节点时远程调用仍依赖 cluster 已初始化（进程级）。
 
+## ADR-009: 客户端协议与会话（网关边缘、token、顶号）
+
+- Date: 2026-10-09
+- Status: Accepted
+- Context: 需要统一的客户端协议与安全的会话模型，且网关不应持有鉴权密钥。
+- Decision: 定义 `ccserver.protocol` 帧内协议（version/type/msgid/seq + seri payload），
+  传输帧复用运行时 `socket` 帧协议；网关作为边缘，负责版本协商、解析、路由与 session 管理；
+  LOGIN 只做鉴权并发 token，**ENTER 才绑定 `fd→uid`**；同一 uid 新登录对旧连接发 `KICK` 并关闭（顶号）；
+  token 无状态（login 校验），故重连只需重发 ENTER。网关不存密码/签名密钥。
+- Consequences: 协议演进显式（版本不匹配拒绝并断开）；顶号/重连语义明确；payload 暂用 seri，
+  后续可替换为 protobuf；心跳超时回收与限流留待 M5。
+
+## ADR-010: 服务处理器用 `moon.async` 派生，避免 socket 回调内 yield
+
+- Date: 2026-10-09
+- Status: Accepted
+- Context: socket 消息回调运行在**池化**协程中，回调内直接 yield（如 `router.call`）会导致挂起/复用异常；
+  且 Lua 中非末尾的多返回值参数会被截断为 1 个，曾导致 `handler(s, table.unpack(args), seq)` 丢失参数。
+- Decision: socket 回调内不 yield，改为 `moon.async` 派生独立协程执行可能阻塞的处理器；
+  传参时把额外参数并入 args 表，使 `table.unpack(args)` 位于调用末尾以完整展开。
+- Consequences: 网关处理器可安全调用后端服务；`service.lua` 分发同样用 `table.pack/unpack` 保留多返回值。
+
+
 
 

@@ -98,6 +98,7 @@ function M.for_node(cfg, node_id)
             name = sname,
             source = spec.source,
             unique = spec.unique,
+            config = spec.config,
         }
     end
     return { services = services, cluster = cfg.cluster or {} }

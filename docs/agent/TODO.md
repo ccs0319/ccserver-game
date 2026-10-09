@@ -13,7 +13,7 @@
 ## M 成熟化路线（见 docs/architecture.md）
 
 - [x] **M1 服务拓扑骨架**：`ccserver/{service,router,topology,node}` + 参考服务 gateway/login/lobby/world + `app/` + `test_topology`。
-- [ ] **M2 协议与会话**：统一帧协议 + 版本协商 + 登录 token + 网关 session 绑定 + 重连/顶号。
+- [x] **M2 协议与会话**：`ccserver/protocol.lua` + gateway 客户端接入 + session 绑定/顶号 + `docs/protocol.md` + `test_gateway`。
 - [ ] **M3 数据/配置硬化**：db 池化观测容错、分层配置+校验、迁移校验和+锁、热更事件化+广播。
 - [ ] **M4 可观测性**：metrics（Prometheus）+ health/readiness + trace id。
 - [ ] **M5 可靠性与安全**：限流、熔断、优雅 drain、密钥隔离、定时+校验备份。

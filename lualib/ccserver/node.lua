@@ -61,6 +61,7 @@ function M.start(cfg, node_id)
             node = node_id,
             service = spec.name,
             routing = routing,
+            config = spec.config,
         })
         if not id or id == 0 then
             error(string.format("ccserver.node: failed to start service '%s'", spec.name))
