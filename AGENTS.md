@@ -1,9 +1,9 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 0.3.0
+version: 0.4.0
 status: bootstrap
-last_updated: 2026-10-08
+last_updated: 2026-10-09
 upstream_repo: https://github.com/sniper00/moon_rs
 upstream_baseline: 272c9b8f035decd60bf3cb4e4930c75eb0f47217
 upstream_sync: rebase our delta onto upstream/main (scripts/update-upstream.sh)
@@ -115,6 +115,8 @@ lualib/           # 面向用户的 Lua API 与封装（moon.lua、socket、http
   moon/db/*.lua   # 各驱动封装 + migration.lua（结构迁移）
   moon/config.lua # 配置加载 + 热重载
   moon/hotreload.lua # 基于 hotfix 的代码热更
+  ccserver/       # 游戏服务器框架层：service.lua/router.lua/topology.lua/node.lua + services/
+app/              # 参考应用：main.lua（入口）+ config/topology.lua（服务拓扑）
 assets/           # 示例、benchmark、Lua 集成测试脚本；assets/migration/ 迁移示例
 scripts/          # 一键启停 / 依赖拉起 / 上游同步脚本
 docker-compose.yml# 本地依赖：Redis / MySQL / PostgreSQL / MongoDB
@@ -183,6 +185,9 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 - **进程模型**：**单进程、多线程**。一个 `moon_rs` 二进制 = 一个 OS 进程；Tokio 多线程运行时
   + `unique` actor 各自独占 OS 线程。跨进程/多节点用 `cluster` 模块（每个节点是独立进程）。
+- **服务拓扑**：框架层在 `lualib/ccserver/`（service/router/topology/node），参考服务为
+  `ccserver.services.{gateway,login,lobby,world}`，由 `app/config/topology.lua` 决定哪个服务跑在哪个节点。
+  服务代码按逻辑名路由（`router.call("login", ...)`），本地/远程对代码透明。详见 `docs/architecture.md`。
 - **Actor 模型**：Lua service 通过类型化消息（`PTYPE_*`）通信；Rust 负责异步 I/O。
 - **unique vs 非 unique**：`unique = true` 的 actor 跑在专用 OS 线程 + 阻塞接收；否则是 Tokio task。
 - **每-actor 内存**：自定义 Lua 分配器按 actor 记账，支持内存上限。
@@ -208,6 +213,11 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 - [ ] **P6 分布式**：cluster 节点发现、跨服消息、网关/世界服/大厅服拆分。
 - [~] **P7 示例与压测**：`example_db` / `example_server` 与 db/migration/hotreload 测试已就绪；
   待补完整游戏 demo 与 benchmark。
+
+> **成熟化路线（M1–M6，详见 `docs/architecture.md`）**：
+> [x] M1 服务拓扑骨架（gateway/login/lobby/world + node/router/topology）·
+> [ ] M2 统一协议与会话 · [ ] M3 数据/配置硬化 · [ ] M4 可观测性 ·
+> [ ] M5 可靠性与安全 · [ ] M6 CI/CD 与压测。
 
 ---
 
@@ -236,6 +246,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-09 | 0.4.0 | 服务拓扑骨架 M1：`lualib/ccserver/`（service/router/topology/node + 参考服务 gateway/login/lobby/world）、`app/`（main + config/topology）、`docs/architecture.md`、`test_topology`（实测通过）。 |
 | 2026-10-08 | 0.3.0 | 运维：数据库备份/恢复（`scripts/backup.sh`/`restore.sh`，保留策略）、`docker-compose.yml` 命名卷持久化、`docs/backup.md`；明确单进程多线程模型。 |
 | 2026-10-08 | 0.2.0 | 数据层：统一 `moon.db`（Redis+SQLx+可选 Mongo/pg）、结构迁移 `moon.db.migration`、配置热更 `moon.config`、代码热更 `moon.hotreload`；基础设施：`docker-compose.yml`、`scripts/*`、`Makefile`；确立 fork+upstream rebase 同步策略。 |
 | 2026-10-08 | 0.1.0 | 初始化：fork moon_rs@272c9b8，建立自更新 AGENTS.md + docs/agent 记忆层 + `xtask agent-check`。 |

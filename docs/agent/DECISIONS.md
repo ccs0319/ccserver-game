@@ -71,4 +71,29 @@
 - Consequences: 本地开发即可一键备份/恢复（实测 MySQL/PG 还原成功）；Redis 恢复仅支持容器模式；
   生产环境仍需额外的 PITR/副本/异地存储，脚本本身不覆盖这些。
 
+## ADR-007: 以服务边界划分游戏服务器（gateway/login/lobby/world）
+
+- Date: 2026-10-09
+- Status: Accepted
+- Context: 单进程塞入登录与游戏内服务不利于隔离、伸缩与安全。需要明确的服务边界与可拆分拓扑。
+- Decision: 框架层引入 `lualib/ccserver/`（service/router/topology/node），参考服务划分为
+  **gateway**（接入/会话，不持密钥）、**login**（鉴权/发 token，唯一持密钥）、**lobby**（社交/匹配）、
+  **world**（有状态，按区/线分服）。由 `app/config/topology.lua` 决定服务跑在哪个节点；
+  开发期可同进程，上线按 `cluster` 拆进程，代码零改动。
+- Consequences: 服务代码只按逻辑名路由；拆分是配置项而非重构。当前 `world` 单实例，
+  分片（world_1..N）与多节点发现（etcd）列为 M2/M6 落地。
+
+## ADR-008: 服务路由采用「本地优先」，不依赖 cluster 的 per-state NODE
+
+- Date: 2026-10-09
+- Status: Accepted
+- Context: 每个 service 是独立 actor、拥有独立 lua_State；`cluster` Lua 封装的 `NODE` 是 per-state
+  值，服务内未初始化，若用它判断本地/远程会把本地调用误走网络。
+- Decision: `ccserver.router` 依据 `topology.service_nodes` 的 `service -> node` 映射与自身 node 比较：
+  本地目标走 `moon.call`/`moon.send`（不依赖 cluster），仅远程目标走 `cluster.call`/`cluster.send`。
+  服务通过 `new_service` 的 `node`/`routing` 参数获得映射并在启动时 `router.configure`。
+- Consequences: 本地调用无 cluster 依赖、更快且可在无 discovery 的单机模式下工作；
+  服务必须是 `unique = true`（按名寻址）。多节点时远程调用仍依赖 cluster 已初始化（进程级）。
+
+
 
