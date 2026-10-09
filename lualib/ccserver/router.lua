@@ -57,6 +57,12 @@ function M.node_of(name)
     return services[name]
 end
 
+--- All known services (`name -> node`).
+---@return table<string, integer>
+function M.services()
+    return services
+end
+
 ---@return integer|nil
 function M.self_node()
     return node_id

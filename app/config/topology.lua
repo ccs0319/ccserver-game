@@ -23,11 +23,15 @@ return {
         login   = { source = "ccserver.services.login",   unique = true },
         lobby   = { source = "ccserver.services.lobby",   unique = true },
         world   = { source = "ccserver.services.world",   unique = true },
+        admin   = { source = "ccserver.services.admin",   unique = true, config = {
+            addr = env("CCS_ADMIN_ADDR", "0.0.0.0:9002"),
+            required_services = { "gateway", "login", "lobby", "world" },
+        } },
     },
 
     nodes = {
         -- Single-node dev: everything on node 1.
-        [1] = { services = { "gateway", "login", "lobby", "world" } },
+        [1] = { services = { "gateway", "login", "lobby", "world", "admin" } },
 
         -- Multi-node example (set CCS_CLUSTER_LISTEN=1 on each node and point
         -- CCS_DISCOVERY_URL at your registry):

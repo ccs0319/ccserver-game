@@ -68,6 +68,7 @@ test-lua: ## Run Lua integration tests that need no external services
 	./target/release/moon_rs assets/test/test_topology.lua
 	./target/release/moon_rs assets/test/test_gateway.lua
 	./target/release/moon_rs assets/test/test_config.lua
+	./target/release/moon_rs assets/test/test_observability.lua
 	./target/release/moon_rs assets/test/test_hotreload.lua
 
 backup: ## Back up local databases to backups/<timestamp>/

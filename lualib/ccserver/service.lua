@@ -14,8 +14,22 @@
 
 local moon = require("moon")
 local router = require("ccserver.router")
+local metrics = require("ccserver.metrics")
 
 local M = {}
+
+--- Built-in commands every service answers (user commands may override them).
+local builtins = {
+    metrics = function()
+        return metrics.render()
+    end,
+    info = function(self)
+        return { name = self.name, node = self.node }
+    end,
+    stats = function()
+        return moon.server_stats()
+    end,
+}
 
 local Service = {}
 Service.__index = Service
@@ -65,7 +79,7 @@ function M.run(spec, conf)
     end
 
     moon.dispatch("lua", function(sender, session, cmd, ...)
-        local handler = commands[cmd]
+        local handler = commands[cmd] or builtins[cmd]
         if not handler then
             moon.error(string.format("[%s] unknown command: %s", tostring(name), tostring(cmd)))
             respond(sender, session, false, "unknown command: " .. tostring(cmd))

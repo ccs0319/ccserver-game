@@ -15,8 +15,7 @@
 - [x] **M1 服务拓扑骨架**：`ccserver/{service,router,topology,node}` + 参考服务 gateway/login/lobby/world + `app/` + `test_topology`。
 - [x] **M2 协议与会话**：`ccserver/protocol.lua` + gateway 客户端接入 + session 绑定/顶号 + `docs/protocol.md` + `test_gateway`。
 - [x] **M3 数据/配置硬化**：`moon.config` 分层+校验+校验式热更、`moon.db.migration` 校验和+锁+verify+rollback、`moon.db` health/backend/stats。
-- [ ] **M4 可观测性**：metrics（Prometheus）+ health/readiness + trace id。
-- [ ] **M4 可观测性**：metrics（Prometheus）+ health/readiness + trace id。
+- [x] **M4 可观测性**：`ccserver.metrics`/`health`/`trace` + admin `/health` `/ready` `/metrics` `/stats`（聚合指标）。
 - [ ] **M5 可靠性与安全**：限流、熔断、优雅 drain、密钥隔离、定时+校验备份。
 - [ ] **M6 CI/CD 与压测**。
 

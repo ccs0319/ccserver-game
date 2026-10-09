@@ -138,6 +138,19 @@
   旧表通过 `ALTER TABLE ADD COLUMN checksum` 平滑升级。
 - Consequences: 多节点启动安全；迁移文件改动可被检出；支持回滚。SQLite/未知后端不加锁（单写者）。
 
+## ADR-013: 可观测性（metrics/health/trace + admin 端点）
+
+- Date: 2026-10-09
+- Status: Accepted
+- Context: 需要成熟的可观测能力（指标、健康探针、请求追踪）以支撑运维与压测。
+- Decision: 提供 `ccserver.metrics`（Prometheus 文本）、`ccserver.health`（探针注册表）、
+  `ccserver.trace`（协程本地 trace id）；新增 **admin 服务** 暴露 `/health` `/ready` `/metrics` `/stats`。
+  指标为 per-actor；`/metrics` 由 admin 通过内置 `metrics` 命令 **RPC 聚合各服务**后合并
+  （跨节点可经 cluster 聚合）。所有服务内置 `metrics`/`info`/`stats` 命令。
+- Consequences: 运维可直接抓取 `/metrics`、用 `/ready` 做就绪探针；网关已接入连接/消息/延迟指标与 trace。
+  局限：无原生进程级指标聚合（靠 RPC 扇出）、无 OpenTelemetry span 导出，列为后续。
+
+
 
 
 

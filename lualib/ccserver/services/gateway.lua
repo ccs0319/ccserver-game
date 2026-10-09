@@ -17,6 +17,8 @@ local buffer = require("buffer")
 local service = require("ccserver.service")
 local router = require("ccserver.router")
 local protocol = require("ccserver.protocol")
+local metrics = require("ccserver.metrics")
+local trace = require("ccserver.trace")
 
 local MSG = protocol.MSG
 local TYPE = protocol.TYPE
@@ -25,6 +27,13 @@ local TYPE = protocol.TYPE
 local sessions = {}
 ---@type table<integer, integer> uid -> fd (active session)
 local by_uid = {}
+local active_connections = 0
+
+metrics.counter("ccserver_connections_total", "Client connections accepted")
+metrics.gauge("ccserver_connections_active", "Currently open client connections")
+metrics.counter("ccserver_client_messages_total", "Client messages handled")
+metrics.counter("ccserver_errors_total", "Errors returned to clients")
+metrics.histogram("ccserver_client_request_seconds", "Client request handling latency")
 
 local function send(fd, mtype, msgid, seq, ...)
     if not sessions[fd] then
@@ -134,6 +143,9 @@ end
 
 local function on_accept(fd, addr)
     sessions[fd] = { fd = fd, addr = addr, ver = nil, uid = nil }
+    active_connections = active_connections + 1
+    metrics.inc("ccserver_connections_total")
+    metrics.set("ccserver_connections_active", active_connections)
     socket.start_read_frame(fd)
 end
 
@@ -141,6 +153,10 @@ local function on_close(fd)
     local s = sessions[fd]
     if s and s.uid and by_uid[s.uid] == fd then
         by_uid[s.uid] = nil
+    end
+    if s then
+        active_connections = active_connections - 1
+        metrics.set("ccserver_connections_active", active_connections)
     end
     sessions[fd] = nil
 end
@@ -163,9 +179,11 @@ local function on_message(fd, buf)
     local name = protocol.msg_name(msg.msgid)
     local handler = name and handlers[name]
     if not handler then
+        metrics.inc("ccserver_errors_total")
         reply(s, MSG.ERROR, msg.seq, false, "unknown msgid: " .. tostring(msg.msgid))
         return
     end
+    metrics.inc("ccserver_client_messages_total", 1, { msgid = name })
 
     -- Handlers may yield (they route to backend services). The socket message
     -- callback itself must not yield, so run the handler in its own coroutine.
@@ -174,13 +192,18 @@ local function on_message(fd, buf)
     args[args.n + 1] = msg.seq
     args.n = args.n + 1
     moon.async(function()
+        local tid = trace.start()
+        local started = moon.clock()
         local packed = table.pack(xpcall(function()
             return handler(s, table.unpack(args, 1, args.n))
         end, debug.traceback))
+        metrics.observe("ccserver_client_request_seconds", moon.clock() - started, { msgid = name })
         if not packed[1] then
-            moon.error("gateway handler error: " .. tostring(packed[2]))
+            metrics.inc("ccserver_errors_total")
+            moon.error(string.format("[trace %s] gateway handler error: %s", tid, tostring(packed[2])))
             reply(s, MSG.ERROR, args[args.n], false, tostring(packed[2]))
         end
+        trace.clear()
     end)
 end
 
