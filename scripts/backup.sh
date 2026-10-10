@@ -41,6 +41,16 @@ container_running() {
     docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$1"
 }
 
+sha256() {
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" | awk '{print $1}'
+    elif command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+    else
+        echo "-"
+    fi
+}
+
 mkdir -p "$DEST"
 echo "backup -> $DEST"
 
@@ -97,13 +107,15 @@ backup_pg
 backup_mongo
 backup_redis
 
-# Manifest for restore / audit.
+# Manifest for restore / integrity verification (name size sha256).
 {
     echo "created_at=$TS"
     echo "host=$(hostname)"
     for f in "$DEST"/*; do
         [ -e "$f" ] || continue
-        echo "$(basename "$f") $(wc -c <"$f" | tr -d ' ') bytes"
+        base="$(basename "$f")"
+        [ "$base" = "MANIFEST" ] && continue
+        echo "$base $(wc -c <"$f" | tr -d ' ') $(sha256 "$f")"
     done
 } >"$DEST/MANIFEST"
 

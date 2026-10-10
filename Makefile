@@ -7,7 +7,7 @@ CARGO ?= cargo
 .DEFAULT_GOAL := help
 
 .PHONY: help build check test fmt fmt-check clippy agent-check lint \
-        run start stop restart status db-up db-down db-reset test-db test-lua backup restore clean
+        run start stop restart status db-up db-down db-reset test-db test-lua backup verify-backup restore clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -69,10 +69,14 @@ test-lua: ## Run Lua integration tests that need no external services
 	./target/release/moon_rs assets/test/test_gateway.lua
 	./target/release/moon_rs assets/test/test_config.lua
 	./target/release/moon_rs assets/test/test_observability.lua
+	./target/release/moon_rs assets/test/test_reliability.lua
 	./target/release/moon_rs assets/test/test_hotreload.lua
 
 backup: ## Back up local databases to backups/<timestamp>/
 	scripts/backup.sh
+
+verify-backup: ## Verify the newest backup's integrity (size + sha256)
+	scripts/verify-backup.sh $(or $(BACKUP),latest)
 
 restore: ## Restore from the newest backup (RESTORE=latest or a timestamp)
 	scripts/restore.sh $(or $(RESTORE),latest)

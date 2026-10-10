@@ -1,20 +1,20 @@
 # STATE — ccserver 当前状态
 
 <!-- agent-state
-last_updated: 2026-10-09
-phase: M4
+last_updated: 2026-10-10
+phase: M5
 -->
 
 > 本文件由 agent 按 `AGENTS.md` §0 协议维护。只写事实、进度、阻塞与已知坑。
 
 ## 当前阶段
 
-**M4 可观测性（已完成）**，进入 **M5 可靠性与安全**。成熟化路线见 `docs/architecture.md`。
+**M5 可靠性与安全（已完成）**，进入 **M6 CI/CD 与压测**。成熟化路线见 `docs/architecture.md`。
 
 ## 进行中
 
-- [ ] M5：限流、熔断、优雅 drain、密钥隔离、定时+校验备份。
-- [ ] 补 CI（fmt/clippy/test）与贡献规范（P1）。
+- [ ] M6：CI（fmt/clippy/test）、负载压测与容量报告。
+- [ ] 补贡献规范（P1）。
 
 ## 已完成
 
@@ -27,7 +27,8 @@ phase: M4
 - [x] **M2 协议与会话**：`ccserver/protocol.lua`（帧协议/版本协商/msgid 注册）；gateway 接入客户端（HELLO/LOGIN/ENTER/MOVE/PING）、session 绑定与顶号；`docs/protocol.md`。
 - [x] **M3 数据/配置硬化**：`moon.config` 分层+校验+校验式热更；`moon.db.migration` 校验和+并发锁+verify+rollback；`moon.db` health/backend/stats。
 - [x] **M4 可观测性**：`ccserver.metrics`（Prometheus）/`health`/`trace`；admin 服务 `/health` `/ready` `/metrics` `/stats`（聚合各服务指标）；gateway 接入指标与 trace。
-- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_config`、`test_observability`。
+- [x] **M5 可靠性与安全**：`ccserver.ratelimit`/`breaker`/`secrets`；gateway 每连接限流 + 优雅 drain；`scripts/verify-backup.sh` 备份 sha256 校验。
+- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_config`、`test_observability`、`test_reliability`。
 
 ## 阻塞项
 

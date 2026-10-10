@@ -150,6 +150,27 @@
 - Consequences: 运维可直接抓取 `/metrics`、用 `/ready` 做就绪探针；网关已接入连接/消息/延迟指标与 trace。
   局限：无原生进程级指标聚合（靠 RPC 扇出）、无 OpenTelemetry span 导出，列为后续。
 
+## ADR-014: 可靠性与安全采用边缘限流 + 熔断 + 优雅 drain + 密钥隔离
+
+- Date: 2026-10-10
+- Status: Accepted
+- Context: 需要防护过载/下游故障、平滑停机与密钥不落库。
+- Decision: `ccserver.ratelimit`（令牌桶，gateway 每连接限流，超限返回 ERROR 并计入指标）；
+  `ccserver.breaker`（按下游服务熔断，open→half_open→closed）；gateway 停机时**优雅 drain**
+  （停收新连接→等待 in-flight→关闭剩余连接）；`ccserver.secrets`（env/文件加载 + redact，密钥不入配置库）。
+- Consequences: 单连接可被限速、下游故障快速失败、停机不丢在途请求、密钥可安全注入。
+  局限：限流仅按连接（未按 uid/命令）、熔断需显式包裹调用，列为后续。
+
+## ADR-015: 备份加入 sha256 清单与独立校验脚本
+
+- Date: 2026-10-10
+- Status: Accepted
+- Context: 备份可能静默损坏，需要可验证的完整性。
+- Decision: `scripts/backup.sh` 的 MANIFEST 记录每个文件的 size + sha256；新增 `scripts/verify-backup.sh`
+  重算并比对，缺失/尺寸/哈希不符即非零退出（可挂 cron 告警）。`make verify-backup`。
+- Consequences: 备份可校验；篡改/损坏可被检出。局限：未做恢复演练式校验（restore 到临时库）与异地存储，列为后续。
+
+
 
 
 

@@ -19,6 +19,7 @@ local router = require("ccserver.router")
 local protocol = require("ccserver.protocol")
 local metrics = require("ccserver.metrics")
 local trace = require("ccserver.trace")
+local ratelimit = require("ccserver.ratelimit")
 
 local MSG = protocol.MSG
 local TYPE = protocol.TYPE
@@ -29,10 +30,17 @@ local sessions = {}
 local by_uid = {}
 local active_connections = 0
 
+-- Rate limit defaults (per connection); overridable via config/env.
+local rate_per_sec = 20
+local rate_burst = 40
+local drain_grace_ms = 300
+local draining = false
+
 metrics.counter("ccserver_connections_total", "Client connections accepted")
 metrics.gauge("ccserver_connections_active", "Currently open client connections")
 metrics.counter("ccserver_client_messages_total", "Client messages handled")
 metrics.counter("ccserver_errors_total", "Errors returned to clients")
+metrics.counter("ccserver_rate_limited_total", "Client messages dropped by rate limit")
 metrics.histogram("ccserver_client_request_seconds", "Client request handling latency")
 
 local function send(fd, mtype, msgid, seq, ...)
@@ -142,6 +150,10 @@ end
 --------------------------------------------------------------------------------
 
 local function on_accept(fd, addr)
+    if draining then
+        socket.close(fd)
+        return
+    end
     sessions[fd] = { fd = fd, addr = addr, ver = nil, uid = nil }
     active_connections = active_connections + 1
     metrics.inc("ccserver_connections_total")
@@ -157,6 +169,7 @@ local function on_close(fd)
     if s then
         active_connections = active_connections - 1
         metrics.set("ccserver_connections_active", active_connections)
+        ratelimit.reset("fd:" .. fd)
     end
     sessions[fd] = nil
 end
@@ -173,6 +186,12 @@ local function on_message(fd, buf)
         return
     end
     if msg.type ~= TYPE.REQUEST then
+        return
+    end
+
+    if not ratelimit.allow("fd:" .. fd, rate_per_sec, rate_burst) then
+        metrics.inc("ccserver_rate_limited_total")
+        reply(s, MSG.ERROR, msg.seq, false, "rate limited")
         return
     end
 
@@ -211,6 +230,11 @@ service.run({
     name = "gateway",
     commands = {}, -- client-facing; no internal RPC commands
     on_start = function(self)
+        local rate = self.config.rate or {}
+        rate_per_sec = tonumber(rate.per_sec or os.getenv("CCS_GATEWAY_RATE")) or rate_per_sec
+        rate_burst = tonumber(rate.burst or os.getenv("CCS_GATEWAY_BURST")) or rate_burst
+        drain_grace_ms = tonumber(self.config.drain_grace_ms) or drain_grace_ms
+
         socket.on("message", on_message)
         socket.on("close", on_close)
         local addr = self.config.addr or os.getenv("CCS_GATEWAY_ADDR") or "0.0.0.0:9001"
@@ -219,12 +243,25 @@ service.run({
             error("gateway: listen failed on " .. addr .. ": " .. tostring(err))
         end
         self.listen_fd = fd
-        moon.info("gateway listening on " .. addr)
+        moon.info(string.format("gateway listening on %s (rate=%d/s burst=%d)", addr, rate_per_sec, rate_burst))
     end,
     on_stop = function(self)
+        -- Graceful drain: stop accepting, let in-flight requests settle, then
+        -- close remaining client connections.
+        draining = true
         if self.listen_fd then
             socket.close(self.listen_fd)
             self.listen_fd = nil
         end
+        moon.info(string.format("gateway draining (%d active connections)", active_connections))
+        if drain_grace_ms > 0 and active_connections > 0 then
+            moon.sleep(drain_grace_ms)
+        end
+        for fd in pairs(sessions) do
+            socket.close(fd)
+        end
+        sessions = {}
+        by_uid = {}
+        active_connections = 0
     end,
 }, ...)

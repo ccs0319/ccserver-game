@@ -1,9 +1,9 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 0.7.0
+version: 0.8.0
 status: bootstrap
-last_updated: 2026-10-09
+last_updated: 2026-10-10
 upstream_repo: https://github.com/sniper00/moon_rs
 upstream_baseline: 272c9b8f035decd60bf3cb4e4930c75eb0f47217
 upstream_sync: rebase our delta onto upstream/main (scripts/update-upstream.sh)
@@ -219,7 +219,8 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 > [x] M2 统一协议与会话（`docs/protocol.md`：帧协议/版本协商/token/session/顶号）·
 > [x] M3 数据/配置硬化（`docs/config.md` + `docs/db.md`：分层配置+校验、迁移校验和+锁+回滚、db 健康检查）·
 > [x] M4 可观测性（`docs/observability.md`：metrics/health/trace + admin `/metrics` `/ready` `/health` `/stats`）·
-> [ ] M5 可靠性与安全 · [ ] M6 CI/CD 与压测。
+> [x] M5 可靠性与安全（`docs/reliability.md`：限流/熔断/优雅 drain/密钥隔离/备份校验）·
+> [ ] M6 CI/CD 与压测。
 
 ---
 
@@ -248,6 +249,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-10 | 0.8.0 | M5 可靠性与安全：`ccserver.ratelimit`（令牌桶）、`ccserver.breaker`（熔断）、`ccserver.secrets`（密钥隔离/redact）；gateway 每连接限流 + 优雅 drain；`scripts/verify-backup.sh`（备份 sha256 校验）；`docs/reliability.md`、`test_reliability`（实测通过）。 |
 | 2026-10-09 | 0.7.0 | M4 可观测性：`ccserver.metrics`（Prometheus）、`ccserver.health`、`ccserver.trace`；admin 服务 `/health` `/ready` `/metrics` `/stats`（聚合各服务指标）；gateway 接入指标与 trace；`docs/observability.md`、`test_observability`（实测通过）。 |
 | 2026-10-09 | 0.6.0 | M3 数据/配置硬化：`moon.config` 分层+校验+校验式热更（`docs/config.md`）；`moon.db.migration` 校验和+并发锁+verify+rollback；`moon.db` 健康检查/backend 探测/stats（`docs/db.md`）；`test_config`/`test_migration`/`test_db_stack` 扩展（实测通过）。 |
 | 2026-10-09 | 0.5.0 | M2 协议与会话：`ccserver/protocol.lua`（帧协议/版本协商/msgid 注册）、gateway 接入客户端（HELLO/LOGIN/ENTER/MOVE/PING）、session 绑定与顶号、`docs/protocol.md`、`test_gateway`（实测通过）。 |
