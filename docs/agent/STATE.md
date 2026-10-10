@@ -2,19 +2,20 @@
 
 <!-- agent-state
 last_updated: 2026-10-10
-phase: M5
+phase: M6
 -->
 
 > 本文件由 agent 按 `AGENTS.md` §0 协议维护。只写事实、进度、阻塞与已知坑。
 
 ## 当前阶段
 
-**M5 可靠性与安全（已完成）**，进入 **M6 CI/CD 与压测**。成熟化路线见 `docs/architecture.md`。
+**M1–M6 成熟化路线全部完成**。后续方向见下（多节点验证、world 分片、贡献规范）。
 
 ## 进行中
 
-- [ ] M6：CI（fmt/clippy/test）、负载压测与容量报告。
-- [ ] 补贡献规范（P1）。
+- [ ] 多节点部署实测（cluster + 注册中心）。
+- [ ] world 分片（world_1..N）与按区/线路由。
+- [ ] 贡献规范（CONTRIBUTING）与更多端到端测试。
 
 ## 已完成
 
@@ -28,7 +29,8 @@ phase: M5
 - [x] **M3 数据/配置硬化**：`moon.config` 分层+校验+校验式热更；`moon.db.migration` 校验和+并发锁+verify+rollback；`moon.db` health/backend/stats。
 - [x] **M4 可观测性**：`ccserver.metrics`（Prometheus）/`health`/`trace`；admin 服务 `/health` `/ready` `/metrics` `/stats`（聚合各服务指标）；gateway 接入指标与 trace。
 - [x] **M5 可靠性与安全**：`ccserver.ratelimit`/`breaker`/`secrets`；gateway 每连接限流 + 优雅 drain；`scripts/verify-backup.sh` 备份 sha256 校验。
-- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_config`、`test_observability`、`test_reliability`。
+- [x] **M6 CI/CD 与压测**：`.github/workflows/ci.yml`（fmt/clippy/test/build/lua-tests/db-tests）；`benchmark_gateway.lua` + `scripts/bench.sh` + `docs/benchmark.md`（单机 ~170k req/s）。
+- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
 
 ## 阻塞项
 
@@ -38,6 +40,8 @@ phase: M5
 
 - **Lua 多返回值陷阱**：函数调用若非**最后一个参数**，其多返回值会被截断为 1 个。
   `f(s, table.unpack(args), seq)` 只传一个 arg；应把额外值并入 args 后 `f(s, table.unpack(args))`。
+- **网关处理器签名**：`handler(session, seq, ...args)` —— `seq` 固定为第二个参数，
+  避免客户端省略尾部参数时 `seq` 错位（曾导致 `MOVE` 响应 seq 丢失、客户端挂起）。
 - **socket 回调内不可 yield**：消息回调协程被池化，处理器需 `moon.async` 派生协程后再 `moon.call`。
 - **服务是独立 actor（各自 lua_State）**：`cluster` 模块的 `NODE` 是 per-state 值，服务内不可依赖它做本地判断。
   `ccserver.router` 采用**本地优先**：按 `service_nodes` 映射比较自身 node，本地走 `moon.call`，远程才走 `cluster.call`。

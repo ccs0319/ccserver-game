@@ -71,12 +71,13 @@ local function close_session(fd)
 end
 
 --------------------------------------------------------------------------------
--- Client command handlers: handler(session, ...args, seq)
+-- Client command handlers: handler(session, seq, ...args)
+-- `seq` is always the second argument, so omitted trailing args cannot shift it.
 --------------------------------------------------------------------------------
 
 local handlers = {}
 
-function handlers.HELLO(s, client_version, seq)
+function handlers.HELLO(s, seq, client_version)
     if client_version ~= protocol.VERSION then
         reply(s, MSG.HELLO_ACK, seq, false,
             string.format("unsupported protocol version %s (server=%d)", tostring(client_version), protocol.VERSION))
@@ -87,7 +88,7 @@ function handlers.HELLO(s, client_version, seq)
     reply(s, MSG.HELLO_ACK, seq, true, protocol.VERSION)
 end
 
-function handlers.LOGIN(s, account, password, seq)
+function handlers.LOGIN(s, seq, account, password)
     if not s.ver then
         reply(s, MSG.LOGIN, seq, false, "hello required")
         return
@@ -101,7 +102,7 @@ function handlers.LOGIN(s, account, password, seq)
     reply(s, MSG.LOGIN, seq, true, { uid = auth.uid, token = auth.token })
 end
 
-function handlers.ENTER(s, token, seq)
+function handlers.ENTER(s, seq, token)
     if not s.ver then
         reply(s, MSG.ENTER, seq, false, "hello required")
         return
@@ -132,7 +133,7 @@ function handlers.ENTER(s, token, seq)
         { uid = auth.uid, account = auth.account, lobby = lobby, world = world })
 end
 
-function handlers.MOVE(s, x, y, seq)
+function handlers.MOVE(s, seq, x, y)
     if not s.uid then
         reply(s, MSG.MOVE, seq, false, "not entered")
         return
@@ -206,21 +207,20 @@ local function on_message(fd, buf)
 
     -- Handlers may yield (they route to backend services). The socket message
     -- callback itself must not yield, so run the handler in its own coroutine.
-    -- Append seq to the args so `table.unpack` (the final argument) expands all.
+    -- `seq` is passed as the 2nd arg; `table.unpack` stays last so it expands.
     local args = msg.args
-    args[args.n + 1] = msg.seq
-    args.n = args.n + 1
+    local mseq = msg.seq
     moon.async(function()
         local tid = trace.start()
         local started = moon.clock()
         local packed = table.pack(xpcall(function()
-            return handler(s, table.unpack(args, 1, args.n))
+            return handler(s, mseq, table.unpack(args, 1, args.n))
         end, debug.traceback))
         metrics.observe("ccserver_client_request_seconds", moon.clock() - started, { msgid = name })
         if not packed[1] then
             metrics.inc("ccserver_errors_total")
             moon.error(string.format("[trace %s] gateway handler error: %s", tid, tostring(packed[2])))
-            reply(s, MSG.ERROR, args[args.n], false, tostring(packed[2]))
+            reply(s, MSG.ERROR, mseq, false, tostring(packed[2]))
         end
         trace.clear()
     end)

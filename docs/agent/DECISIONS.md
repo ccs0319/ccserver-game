@@ -170,6 +170,29 @@
   重算并比对，缺失/尺寸/哈希不符即非零退出（可挂 cron 告警）。`make verify-backup`。
 - Consequences: 备份可校验；篡改/损坏可被检出。局限：未做恢复演练式校验（restore 到临时库）与异地存储，列为后续。
 
+## ADR-016: CI 采用 GitHub Actions，fmt/clippy/test/build + Lua/db 集成测试
+
+- Date: 2026-10-10
+- Status: Accepted
+- Context: 需要自动化质量门禁与回归。
+- Decision: 新增 `.github/workflows/ci.yml`：`lint`（`cargo fmt --check` + `cargo clippy --workspace --all-targets`）、
+  `test`（`cargo xtask agent-check` + `cargo test --workspace`）、`build`、`lua-tests`（无需外部服务的 Lua 集成测试）、
+  `db-tests`（用 GitHub services 起 Redis/MySQL/PostgreSQL 跑 `test_db_stack`/`test_migration`）。
+  clippy 对上游少量 warning 不 deny（遵循 ADR-004 不重排上游）。
+- Consequences: push/PR 自动跑 fmt/clippy/test/build 与集成测试；上游 warning 不阻塞但可见。
+
+## ADR-017: 压测用独立客户端进程 + 一键脚本，修复网关参数错位
+
+- Date: 2026-10-10
+- Status: Accepted
+- Context: 需要可复现的单机容量基线与负载工具。
+- Decision: `assets/benchmark/benchmark_gateway.lua` 作为独立 moon_rs 进程连接运行中的网关做压测
+  （HELLO/LOGIN/ENTER 后按命令循环，报告吞吐与 p50/p90/p99）；`scripts/bench.sh` 一键起服（禁用限流）→压测→停服；
+  `docs/benchmark.md` 记录基线（~170k req/s）与注意事项。
+  压测暴露并修复了网关处理器签名 bug：`seq` 改为**固定第二参数** `handler(session, seq, ...)`，避免省略尾部参数导致错位。
+- Consequences: 有可复现的单机基线与回归手段；处理器签名约定写入 STATE 已知坑。局限：同机压测为下界，未做分布式压测。
+
+
 
 
 

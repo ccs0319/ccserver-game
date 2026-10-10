@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: fmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: rustfmt
+        run: cargo fmt --check
+      - name: clippy
+        # Upstream crates carry a few clippy warnings we intentionally do not
+        # reformat (see DECISIONS ADR-004); this job reports but does not deny.
+        run: cargo clippy --workspace --all-targets
+
+  test:
+    name: cargo test + agent-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: agent memory layer
+        run: cargo xtask agent-check
+      - name: cargo test
+        run: cargo test --workspace
+
+  build:
+    name: release build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: build
+        run: cargo build --release -p moon-app
+
+  lua-tests:
+    name: lua integration tests (no deps)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release -p moon-app
+      - name: run
+        run: |
+          set -e
+          for t in test_topology test_gateway test_config test_observability test_reliability test_hotreload; do
+            echo "== $t =="
+            ./target/release/moon_rs assets/test/$t.lua
+          done
+
+  db-tests:
+    name: lua db tests (redis/mysql/postgres)
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: "123456"
+          MYSQL_DATABASE: "game"
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -p123456" --health-interval 5s --health-timeout 5s --health-retries 30
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: "ccs"
+          POSTGRES_PASSWORD: "123456"
+          POSTGRES_DB: "game"
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ccs -d game" --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release -p moon-app
+      - name: db + migration tests
+        env:
+          CCS_REDIS_URL: "redis://127.0.0.1:6379/0"
+          CCS_MYSQL_URL: "mysql://root:123456@127.0.0.1:3306/game"
+          CCS_PG_URL: "postgres://ccs:123456@127.0.0.1:5432/game"
+        run: |
+          set -e
+          ./target/release/moon_rs assets/test/test_db_stack.lua
+          ./target/release/moon_rs assets/test/test_migration.lua

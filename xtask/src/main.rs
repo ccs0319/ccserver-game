@@ -298,17 +298,21 @@ fn cmd_agent_check(repo_root: &Path) -> Result<()> {
             problems.push(format!("{DECISIONS_FILE}: 未发现 `## ADR-NNN` 条目"));
         }
         if decisions.matches("- Date:").count() < adr_count {
-            problems.push(format!("{DECISIONS_FILE}: {adr_count} 条 ADR 中 `- Date:` 数量不足"));
+            problems.push(format!(
+                "{DECISIONS_FILE}: {adr_count} 条 ADR 中 `- Date:` 数量不足"
+            ));
         }
         if decisions.matches("- Status:").count() < adr_count {
-            problems.push(format!("{DECISIONS_FILE}: {adr_count} 条 ADR 中 `- Status:` 数量不足"));
+            problems.push(format!(
+                "{DECISIONS_FILE}: {adr_count} 条 ADR 中 `- Status:` 数量不足"
+            ));
         }
     }
 
-    if let Some(todo) = &todo {
-        if !todo.contains("- [") {
-            problems.push(format!("{TODO_FILE}: 未发现任务复选框 `- [ ]`"));
-        }
+    if let Some(todo) = &todo
+        && !todo.contains("- [")
+    {
+        problems.push(format!("{TODO_FILE}: 未发现任务复选框 `- [ ]`"));
     }
 
     if problems.is_empty() {
@@ -338,10 +342,10 @@ fn meta_field(text: &str, tag: &str, key: &str) -> Option<String> {
     let rest = &text[start..];
     let end = rest.find("-->")?;
     for line in rest[..end].lines() {
-        if let Some((k, v)) = line.split_once(':') {
-            if k.trim() == key {
-                return Some(v.trim().to_string());
-            }
+        if let Some((k, v)) = line.split_once(':')
+            && k.trim() == key
+        {
+            return Some(v.trim().to_string());
         }
     }
     None

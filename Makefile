@@ -7,7 +7,7 @@ CARGO ?= cargo
 .DEFAULT_GOAL := help
 
 .PHONY: help build check test fmt fmt-check clippy agent-check lint \
-        run start stop restart status db-up db-down db-reset test-db test-lua backup verify-backup restore clean
+        run start stop restart status db-up db-down db-reset test-db test-lua backup verify-backup restore bench clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -80,6 +80,9 @@ verify-backup: ## Verify the newest backup's integrity (size + sha256)
 
 restore: ## Restore from the newest backup (RESTORE=latest or a timestamp)
 	scripts/restore.sh $(or $(RESTORE),latest)
+
+bench: ## Gateway load test (CONN=100 SEC=5 MSG=PING)
+	scripts/bench.sh
 
 clean: ## Remove build artifacts
 	$(CARGO) clean

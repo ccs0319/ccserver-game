@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 0.8.0
+version: 0.9.0
 status: bootstrap
 last_updated: 2026-10-10
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -220,7 +220,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 > [x] M3 数据/配置硬化（`docs/config.md` + `docs/db.md`：分层配置+校验、迁移校验和+锁+回滚、db 健康检查）·
 > [x] M4 可观测性（`docs/observability.md`：metrics/health/trace + admin `/metrics` `/ready` `/health` `/stats`）·
 > [x] M5 可靠性与安全（`docs/reliability.md`：限流/熔断/优雅 drain/密钥隔离/备份校验）·
-> [ ] M6 CI/CD 与压测。
+> [x] M6 CI/CD 与压测（`.github/workflows/ci.yml` + `docs/benchmark.md`：单机基线 + `make bench`）。
 
 ---
 
@@ -249,6 +249,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-10 | 0.9.0 | M6 CI/CD 与压测：`.github/workflows/ci.yml`（fmt/clippy/test/build + Lua 集成测试 + db 服务测试）；`assets/benchmark/benchmark_gateway.lua` + `scripts/bench.sh`（`make bench`）；`docs/benchmark.md`（单机基线 ~170k req/s）；修复网关参数错位（seq 固定为第二参数）。 |
 | 2026-10-10 | 0.8.0 | M5 可靠性与安全：`ccserver.ratelimit`（令牌桶）、`ccserver.breaker`（熔断）、`ccserver.secrets`（密钥隔离/redact）；gateway 每连接限流 + 优雅 drain；`scripts/verify-backup.sh`（备份 sha256 校验）；`docs/reliability.md`、`test_reliability`（实测通过）。 |
 | 2026-10-09 | 0.7.0 | M4 可观测性：`ccserver.metrics`（Prometheus）、`ccserver.health`、`ccserver.trace`；admin 服务 `/health` `/ready` `/metrics` `/stats`（聚合各服务指标）；gateway 接入指标与 trace；`docs/observability.md`、`test_observability`（实测通过）。 |
 | 2026-10-09 | 0.6.0 | M3 数据/配置硬化：`moon.config` 分层+校验+校验式热更（`docs/config.md`）；`moon.db.migration` 校验和+并发锁+verify+rollback；`moon.db` 健康检查/backend 探测/stats（`docs/db.md`）；`test_config`/`test_migration`/`test_db_stack` 扩展（实测通过）。 |

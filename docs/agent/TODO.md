@@ -17,7 +17,8 @@
 - [x] **M3 数据/配置硬化**：`moon.config` 分层+校验+校验式热更、`moon.db.migration` 校验和+锁+verify+rollback、`moon.db` health/backend/stats。
 - [x] **M4 可观测性**：`ccserver.metrics`/`health`/`trace` + admin `/health` `/ready` `/metrics` `/stats`（聚合指标）。
 - [x] **M5 可靠性与安全**：`ccserver.ratelimit`/`breaker`/`secrets` + gateway 限流/优雅 drain + 备份 sha256 校验。
-- [ ] **M6 CI/CD 与压测**。
+- [x] **M6 CI/CD 与压测**：`.github/workflows/ci.yml` + `benchmark_gateway.lua`/`scripts/bench.sh` + `docs/benchmark.md`。
+- [ ] 多节点部署实测 + world 分片（world_1..N）。
 
 ## P1 — 工程化
 
