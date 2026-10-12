@@ -1,9 +1,9 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 0.9.0
-status: bootstrap
-last_updated: 2026-10-10
+version: 1.0.0
+status: stable
+last_updated: 2026-10-12
 upstream_repo: https://github.com/sniper00/moon_rs
 upstream_baseline: 272c9b8f035decd60bf3cb4e4930c75eb0f47217
 upstream_sync: rebase our delta onto upstream/main (scripts/update-upstream.sh)
@@ -210,7 +210,8 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 - [~] **P4 游戏通用层**：AOI/math 已有纯 Rust 基础；待补实体/房间/事件总线/匹配/排行。
 - [~] **P5 数据层**：统一 `moon.db`（Redis + SQLx[MySQL/PG/SQLite] + 可选 Mongo/pg）、
   结构迁移（`moon.db.migration`）、配置热更、集成测试已就绪；待补热更分发与连接池调优。
-- [ ] **P6 分布式**：cluster 节点发现、跨服消息、网关/世界服/大厅服拆分。
+- [~] **P6 分布式**：cluster 节点发现（HTTP/etcd）+ 跨节点消息已就绪并**实测**（2 节点，world 按 zone 分片）；
+  待补 etcd 生产化、更多服务拆分与容灾。
 - [~] **P7 示例与压测**：`example_db` / `example_server` 与 db/migration/hotreload 测试已就绪；
   待补完整游戏 demo 与 benchmark。
 
@@ -249,6 +250,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-12 | 1.0.0 | world 分片 + 多节点实测：world 服务按 `config.zone` 分片（world_1..N），gateway 按 zone 路由；`app/config/topology.multinode.lua` + `scripts/{run,stop}-cluster.sh`（discovery+2 节点）；`test_sharding`（单机分片）、`test_multinode`（跨节点实测通过，`make test-multinode`）。M1–M6 全部完成，标记 stable。 |
 | 2026-10-10 | 0.9.0 | M6 CI/CD 与压测：`.github/workflows/ci.yml`（fmt/clippy/test/build + Lua 集成测试 + db 服务测试）；`assets/benchmark/benchmark_gateway.lua` + `scripts/bench.sh`（`make bench`）；`docs/benchmark.md`（单机基线 ~170k req/s）；修复网关参数错位（seq 固定为第二参数）。 |
 | 2026-10-10 | 0.8.0 | M5 可靠性与安全：`ccserver.ratelimit`（令牌桶）、`ccserver.breaker`（熔断）、`ccserver.secrets`（密钥隔离/redact）；gateway 每连接限流 + 优雅 drain；`scripts/verify-backup.sh`（备份 sha256 校验）；`docs/reliability.md`、`test_reliability`（实测通过）。 |
 | 2026-10-09 | 0.7.0 | M4 可观测性：`ccserver.metrics`（Prometheus）、`ccserver.health`、`ccserver.trace`；admin 服务 `/health` `/ready` `/metrics` `/stats`（聚合各服务指标）；gateway 接入指标与 trace；`docs/observability.md`、`test_observability`（实测通过）。 |

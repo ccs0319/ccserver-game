@@ -7,7 +7,8 @@ CARGO ?= cargo
 .DEFAULT_GOAL := help
 
 .PHONY: help build check test fmt fmt-check clippy agent-check lint \
-        run start stop restart status db-up db-down db-reset test-db test-lua backup verify-backup restore bench clean
+        run start stop restart status db-up db-down db-reset test-db test-lua backup verify-backup restore bench \
+        cluster-up cluster-down test-multinode clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -67,10 +68,23 @@ test-db: ## Run database integration tests (needs local deps)
 test-lua: ## Run Lua integration tests that need no external services
 	./target/release/moon_rs assets/test/test_topology.lua
 	./target/release/moon_rs assets/test/test_gateway.lua
+	./target/release/moon_rs assets/test/test_sharding.lua
 	./target/release/moon_rs assets/test/test_config.lua
 	./target/release/moon_rs assets/test/test_observability.lua
 	./target/release/moon_rs assets/test/test_reliability.lua
 	./target/release/moon_rs assets/test/test_hotreload.lua
+
+cluster-up: ## Launch a 2-node local cluster (discovery + node1 + node2)
+	scripts/run-cluster.sh
+
+cluster-down: ## Stop the local cluster
+	scripts/stop-cluster.sh
+
+test-multinode: build ## Launch the cluster, run the cross-node routing test, stop
+	scripts/run-cluster.sh
+	sleep 2
+	-CCS_BENCH_ADDR=127.0.0.1:9001 ./target/release/moon_rs assets/test/test_multinode.lua
+	scripts/stop-cluster.sh
 
 backup: ## Back up local databases to backups/<timestamp>/
 	scripts/backup.sh

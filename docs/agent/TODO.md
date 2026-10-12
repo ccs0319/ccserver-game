@@ -18,7 +18,8 @@
 - [x] **M4 可观测性**：`ccserver.metrics`/`health`/`trace` + admin `/health` `/ready` `/metrics` `/stats`（聚合指标）。
 - [x] **M5 可靠性与安全**：`ccserver.ratelimit`/`breaker`/`secrets` + gateway 限流/优雅 drain + 备份 sha256 校验。
 - [x] **M6 CI/CD 与压测**：`.github/workflows/ci.yml` + `benchmark_gateway.lua`/`scripts/bench.sh` + `docs/benchmark.md`。
-- [ ] 多节点部署实测 + world 分片（world_1..N）。
+- [x] **world 分片 + 多节点**：zone 分片 + gateway 按 zone 路由 + 2 节点跨节点实测（`make test-multinode`）。
+- [ ] etcd 生产化节点发现；更多服务拆分与容灾。
 
 ## P1 — 工程化
 

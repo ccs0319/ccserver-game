@@ -36,6 +36,9 @@ local rate_burst = 40
 local drain_grace_ms = 300
 local draining = false
 
+-- zone -> world shard service name; overridable via config.worlds.
+local worlds = { [1] = "world" }
+
 metrics.counter("ccserver_connections_total", "Client connections accepted")
 metrics.gauge("ccserver_connections_active", "Currently open client connections")
 metrics.counter("ccserver_client_messages_total", "Client messages handled")
@@ -102,7 +105,7 @@ function handlers.LOGIN(s, seq, account, password)
     reply(s, MSG.LOGIN, seq, true, { uid = auth.uid, token = auth.token })
 end
 
-function handlers.ENTER(s, seq, token)
+function handlers.ENTER(s, seq, token, zone)
     if not s.ver then
         reply(s, MSG.ENTER, seq, false, "hello required")
         return
@@ -110,6 +113,13 @@ function handlers.ENTER(s, seq, token)
     local auth, err = router.call("login", "verify", token)
     if not auth then
         reply(s, MSG.ENTER, seq, false, err or "auth failed")
+        return
+    end
+
+    zone = zone or 1
+    local world_name = worlds[zone]
+    if not world_name then
+        reply(s, MSG.ENTER, seq, false, "no world for zone " .. tostring(zone))
         return
     end
 
@@ -125,12 +135,14 @@ function handlers.ENTER(s, seq, token)
 
     s.uid = auth.uid
     s.token = token
+    s.zone = zone
+    s.world = world_name
     by_uid[auth.uid] = s.fd
 
     local lobby = router.call("lobby", "enter", auth.uid)
-    local world = router.call("world", "enter", auth.uid, 1)
+    local world = router.call(world_name, "enter", auth.uid, zone)
     reply(s, MSG.ENTER, seq, true,
-        { uid = auth.uid, account = auth.account, lobby = lobby, world = world })
+        { uid = auth.uid, account = auth.account, zone = zone, lobby = lobby, world = world })
 end
 
 function handlers.MOVE(s, seq, x, y)
@@ -138,7 +150,7 @@ function handlers.MOVE(s, seq, x, y)
         reply(s, MSG.MOVE, seq, false, "not entered")
         return
     end
-    local ok, err = router.call("world", "move", s.uid, x, y)
+    local ok, err = router.call(s.world or "world", "move", s.uid, x, y)
     reply(s, MSG.MOVE, seq, ok, ok and { x = x, y = y } or err)
 end
 
@@ -234,6 +246,7 @@ service.run({
         rate_per_sec = tonumber(rate.per_sec or os.getenv("CCS_GATEWAY_RATE")) or rate_per_sec
         rate_burst = tonumber(rate.burst or os.getenv("CCS_GATEWAY_BURST")) or rate_burst
         drain_grace_ms = tonumber(self.config.drain_grace_ms) or drain_grace_ms
+        worlds = self.config.worlds or { [1] = self.config.world or "world" }
 
         socket.on("message", on_message)
         socket.on("close", on_close)

@@ -1,7 +1,7 @@
 # STATE — ccserver 当前状态
 
 <!-- agent-state
-last_updated: 2026-10-10
+last_updated: 2026-10-12
 phase: M6
 -->
 
@@ -9,13 +9,13 @@ phase: M6
 
 ## 当前阶段
 
-**M1–M6 成熟化路线全部完成**。后续方向见下（多节点验证、world 分片、贡献规范）。
+**M1–M6 成熟化路线全部完成；world 分片 + 2 节点跨节点路由已实测。** 框架标记 stable。
 
 ## 进行中
 
-- [ ] 多节点部署实测（cluster + 注册中心）。
-- [ ] world 分片（world_1..N）与按区/线路由。
-- [ ] 贡献规范（CONTRIBUTING）与更多端到端测试。
+- [ ] etcd 生产化节点发现（替换示例 HTTP registry）。
+- [ ] 更多服务拆分与容灾（gateway/lobby 多实例、故障转移）。
+- [ ] CONTRIBUTING 与更多端到端测试。
 
 ## 已完成
 
@@ -30,7 +30,8 @@ phase: M6
 - [x] **M4 可观测性**：`ccserver.metrics`（Prometheus）/`health`/`trace`；admin 服务 `/health` `/ready` `/metrics` `/stats`（聚合各服务指标）；gateway 接入指标与 trace。
 - [x] **M5 可靠性与安全**：`ccserver.ratelimit`/`breaker`/`secrets`；gateway 每连接限流 + 优雅 drain；`scripts/verify-backup.sh` 备份 sha256 校验。
 - [x] **M6 CI/CD 与压测**：`.github/workflows/ci.yml`（fmt/clippy/test/build/lua-tests/db-tests）；`benchmark_gateway.lua` + `scripts/bench.sh` + `docs/benchmark.md`（单机 ~170k req/s）。
-- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
+- [x] **world 分片 + 多节点**：world 按 `config.zone` 分片（world_1..N），gateway 按 zone 路由；`topology.multinode.lua` + `scripts/{run,stop}-cluster.sh`；`test_sharding`（单机）、`test_multinode`（2 节点跨节点实测通过）。
+- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_sharding`、`test_multinode`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
 
 ## 阻塞项
 

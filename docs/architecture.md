@@ -95,7 +95,41 @@ HTTP endpoint works (see `assets/example/cluster/cluster_etc.lua`); etcd is the
 production choice (`lualib/moon/db/etcd.lua`). Set `CCS_CLUSTER_LISTEN=1` on each
 node and point `CCS_DISCOVERY_URL` at the registry.
 
-## Service framework API
+## Multi-node & world sharding
+
+The world is **sharded by zone/line**: each shard is a `world` service instance
+with a `config.zone`, named `world_1`, `world_2`, ... The gateway maps
+`zone -> world service` (`config.worlds`) and routes ENTER/MOVE to the shard for
+the player's zone; if that shard lives on another node, the router transparently
+uses the cluster.
+
+```
+gateway(config.worlds={[1]="world_1",[2]="world_2"})
+  ENTER(zone=2) ─▶ router.call("world_2", …) ─▶ [node 1? local : cluster → node 2]
+```
+
+Single-node sharding (`app/config/topology.lua`) runs `world_1`+`world_2` on one
+process. Multi-node (`app/config/topology.multinode.lua`) puts `world_2` on node
+2 and requires a discovery registry.
+
+### Running a 2-node cluster locally
+
+```bash
+scripts/run-cluster.sh      # discovery(:9090) + node1(gateway:9001) + node2(world_2)
+# or: make cluster-up
+CCS_BENCH_ADDR=127.0.0.1:9001 ./target/release/moon_rs assets/test/test_multinode.lua
+scripts/stop-cluster.sh     # or: make cluster-down
+```
+
+`make test-multinode` does all of the above. Discovery is the HTTP registry in
+`assets/example/cluster/cluster_etc.lua` backed by `app/config/node.json`
+(node id → cluster address). In production use etcd
+(`lualib/moon/db/etcd.lua`). Each node sets `CCS_CLUSTER_LISTEN=1`.
+
+**Verified**: the cross-node test enters zone 2 through node 1's gateway and the
+request is served by `world_2` on node 2 (see `assets/test/test_multinode.lua`).
+
+
 
 A service script calls the base (forwarding its params table):
 

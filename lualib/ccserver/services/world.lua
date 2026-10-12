@@ -1,8 +1,12 @@
 --- world service (reference implementation).
 ---
---- Owns in-game state for a zone/line: entities, positions, AOI (see the
---- `moon-game` crate for the pure-Rust AOI algorithms). A real deployment shards
---- the world into many instances (`world_1`, `world_2`, ...), each a node/service.
+--- Owns in-game state for one **zone/line shard**: entities, positions, AOI (see
+--- the `moon-game` crate for the pure-Rust AOI algorithms). A deployment runs
+--- many shards (`world_1`, `world_2`, ...), each a service (optionally on a
+--- different node). The shard's zone comes from its config:
+---
+---   world_2 = { source = "ccserver.services.world", unique = true,
+---               config = { zone = 2 } }
 
 local moon = require("moon")
 local service = require("ccserver.service")
@@ -11,12 +15,16 @@ local entities = {}
 
 local commands = {}
 
---- Enter the world in a zone.
+--- Enter this shard.
 ---@param uid integer
----@param zone? integer
----@return table entity
+---@param zone? integer must match this shard's zone if given
+---@return table|boolean entity, string? err
 function commands.enter(self, uid, zone)
-    local entity = { uid = uid, zone = zone or 1, x = 0, y = 0 }
+    local shard_zone = self.config.zone or 1
+    if zone and zone ~= shard_zone then
+        return false, string.format("wrong shard: zone %s != %s", tostring(zone), tostring(shard_zone))
+    end
+    local entity = { uid = uid, zone = shard_zone, x = 0, y = 0 }
     entities[uid] = entity
     return entity
 end
@@ -53,7 +61,7 @@ end
 service.run({
     name = "world",
     commands = commands,
-    on_start = function()
-        moon.info("world service ready")
+    on_start = function(self)
+        moon.info(string.format("world shard ready (zone=%s)", tostring(self.config.zone or 1)))
     end,
 }, ...)

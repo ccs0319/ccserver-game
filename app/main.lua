@@ -12,9 +12,10 @@ local topology = require("ccserver.topology")
 
 local args = moon.args()
 local node_id = tonumber(args[1]) or tonumber(os.getenv("CCS_NODE_ID")) or 1
+local topology_path = os.getenv("CCS_TOPOLOGY") or "config/topology.lua"
 
 moon.async(function()
-    local cfg = topology.load("config/topology.lua")
+    local cfg = topology.load(topology_path)
     node.start(cfg, node_id)
     moon.info(string.format("ccserver node %d ready", node_id))
 end)

@@ -192,6 +192,19 @@
   压测暴露并修复了网关处理器签名 bug：`seq` 改为**固定第二参数** `handler(session, seq, ...)`，避免省略尾部参数导致错位。
 - Consequences: 有可复现的单机基线与回归手段；处理器签名约定写入 STATE 已知坑。局限：同机压测为下界，未做分布式压测。
 
+## ADR-018: world 按 zone 分片，多节点用 cluster 跨进程路由
+
+- Date: 2026-10-12
+- Status: Accepted
+- Context: 单 actor world 是吞吐上限；需要按区/线水平拆分并验证跨进程路由。
+- Decision: world 服务实例携带 `config.zone`，命名 `world_1..N`；gateway 以 `config.worlds`（zone→服务名）
+  路由 ENTER/MOVE；`router` 对本地分片走 `moon.call`、对异地分片走 `cluster.call`（透明）。
+  提供 `app/config/topology.multinode.lua`（node1: gateway/login/lobby/world_1/admin；node2: world_2）+
+  `scripts/{run,stop}-cluster.sh`（HTTP discovery + 2 节点）。
+- Consequences: 单机可多分片、跨机可分节点，代码零改动；已实测 zone2 请求经 node1 网关落到 node2 的 world_2。
+  局限：示例用 HTTP registry（生产用 etcd）、未做 gateway/lobby 多实例与故障转移，列为后续。
+
+
 
 
 

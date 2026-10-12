@@ -19,22 +19,26 @@ return {
     },
 
     services = {
-        gateway = { source = "ccserver.services.gateway", unique = true, config = { addr = env("CCS_GATEWAY_ADDR", "0.0.0.0:9001") } },
+        gateway = { source = "ccserver.services.gateway", unique = true, config = {
+            addr = env("CCS_GATEWAY_ADDR", "0.0.0.0:9001"),
+            worlds = { [1] = "world_1", [2] = "world_2" },
+        } },
         login   = { source = "ccserver.services.login",   unique = true },
         lobby   = { source = "ccserver.services.lobby",   unique = true },
-        world   = { source = "ccserver.services.world",   unique = true },
+        world_1 = { source = "ccserver.services.world",   unique = true, config = { zone = 1 } },
+        world_2 = { source = "ccserver.services.world",   unique = true, config = { zone = 2 } },
         admin   = { source = "ccserver.services.admin",   unique = true, config = {
             addr = env("CCS_ADMIN_ADDR", "0.0.0.0:9002"),
-            required_services = { "gateway", "login", "lobby", "world" },
+            required_services = { "gateway", "login", "lobby", "world_1", "world_2" },
         } },
     },
 
     nodes = {
-        -- Single-node dev: everything on node 1.
-        [1] = { services = { "gateway", "login", "lobby", "world", "admin" } },
+        -- Single-node dev: all shards on node 1.
+        [1] = { services = { "gateway", "login", "lobby", "world_1", "world_2", "admin" } },
 
-        -- Multi-node example (set CCS_CLUSTER_LISTEN=1 on each node and point
-        -- CCS_DISCOVERY_URL at your registry):
-        -- [2] = { services = { "world" } },
+        -- Multi-node example: move world_2 to node 2 (set CCS_CLUSTER_LISTEN=1
+        -- on each node, point CCS_DISCOVERY_URL at your registry, and use
+        -- app/config/topology.multinode.lua).
     },
 }
