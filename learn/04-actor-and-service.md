@@ -113,6 +113,35 @@ service "world"        ===>    actor：独立 lua_State + 消息队列 + 一条�
 
 ---
 
+## 8. 把"虚名词"落到代码对象
+
+你嫌这些词虚——那就一个个对上代码：
+
+| 虚名词 | 代码里是什么对象 | 怎么产生 / 怎么用 |
+| --- | --- | --- |
+| **服务 service** | 一个 Lua 脚本 + 一个逻辑名（`gateway.lua` / "gateway"） | 你写的业务文件，用 `service.run({name=...})` 跑 |
+| **实例 instance** | 引擎里一个 **actor**（一个整数 id + 独立 `lua_State`），名字唯一 | `moon.new_service({name="lobby_1", source=...})` 创建并返回 id |
+| **节点 node** | 一个**进程** + 一个整数 `node_id` | 启动时传入；对应 `topology.nodes[node_id]` |
+| **组 group** | 一张表 `{ lobby = {"lobby_1","lobby_2"} }` | 写在拓扑里；`router` 用它轮询 |
+| **actor** | 运行单元（id + lua_State + 消息队列） | 由 `moon.new_service` 创建；`moon.id` 可取自己的 id |
+| **逻辑名 vs 实例名** | `"lobby"`（逻辑）→ 组指向 `"lobby_1"/"lobby_2"`（实例） | 业务只写逻辑名 `router.call("lobby", ...)` |
+
+**关系链**（背下来）：
+
+```
+进程 = 节点（一个 node_id）
+节点 里住着 很多 actor
+一个 actor = 一个服务实例（有唯一 name）
+一个"逻辑服务"（如 lobby）可以对应多个实例（lobby_1/lobby_2），用【组】把它们绑在一起
+拓扑 决定：哪些实例跑在哪个节点、定义了哪些组
+```
+
+> 所以"服务/实例/组/节点"都不是运行时对象，而是**视角**：
+> - 看**职责**叫"服务"；看**具体跑起来的那个**叫"实例"（= actor）；
+> - 看**机器**叫"节点"（= 进程）；看**一组实例**叫"组"（= 一张表）。
+
+---
+
 ## 动手
 
 1. 打开 `lualib/ccserver/service.lua` 的 `M.run`：`moon.dispatch("lua", ...)` 就是

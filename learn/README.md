@@ -11,10 +11,10 @@
 | --- | --- | --- |
 | 0 | `README.md`（本文） | 全貌 + 怎么读 |
 | 1 | [`01-client-vs-server.md`](01-client-vs-server.md) | 客户端思维 vs 服务器思维的根本差异 |
-| 2 | [`02-lifecycle-of-a-request.md`](02-lifecycle-of-a-request.md) | 从进程启动到"登录→进入→移动"的完整链路 |
+| 2 | [`02-lifecycle-of-a-request.md`](02-lifecycle-of-a-request.md) | 从进程启动到"登录→进入→移动"的完整链路（**含名词→代码对象对照**） |
 | 3 | [`03-process-thread-coroutine.md`](03-process-thread-coroutine.md) | 进程/线程/协程、同步/异步、为什么单进程多线程 |
-| 4 | [`04-actor-and-service.md`](04-actor-and-service.md) | **Actor 是什么、和 Service 什么关系**（你最困惑的点） |
-| 5 | [`05-service-topology.md`](05-service-topology.md) | 为什么拆成 gateway/login/lobby/world，拓扑是什么 |
+| 4 | [`04-actor-and-service.md`](04-actor-and-service.md) | **Actor 是什么、和 Service 什么关系**；服务/实例/组/节点落到代码对象 |
+| 5 | [`05-service-topology.md`](05-service-topology.md) | 为什么拆服务、拓扑是什么（**节点/实例/组对应代码**） |
 | 6 | [`06-messages-and-protocol.md`](06-messages-and-protocol.md) | 内部消息 vs 对外协议，序列化，请求/响应 |
 | 7 | [`07-state-and-session.md`](07-state-and-session.md) | 状态放哪、会话、顶号、无共享内存 |
 | 8 | [`08-multiprocess-distributed.md`](08-multiprocess-distributed.md) | **什么时候用多进程**、分片、发现、容灾 |

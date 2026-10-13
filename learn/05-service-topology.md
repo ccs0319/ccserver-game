@@ -63,6 +63,20 @@ nodes = {                        -- 安置表
 - **分组**：同一逻辑服务的多个实例（`lobby_1/lobby_2`），可轮询、可故障转移。
 - **安置表**：哪个服务在哪个节点。
 
+### 这些词对应代码里的什么
+
+| 拓扑里的词 | 代码对象 | 说明 |
+| --- | --- | --- |
+| 整个拓扑 | 一个 Lua 表 `cfg`（`topology.load` 的返回值） | 就是上面那段 `return {...}` |
+| **节点 node** | `nodes[1]`、`nodes[2]` 这两项 + 启动时的 `node_id` | 一个节点 = 一个进程 |
+| **服务目录** | `cfg.services` 表 | 每项 `{source=..., unique=..., config=...}` |
+| **实例 instance** | 一个 actor（名字唯一，如 "lobby_1"） | `node.start` 对目录里的服务调 `moon.new_service` 创建 |
+| **组 group** | `cfg.groups` 表，如 `{lobby={"lobby_1","lobby_2"}}` | `router` 用它做轮询/故障转移 |
+| **服务→节点映射** | `topology.service_nodes(cfg)` → `{gateway=1, world_2=2}` | `router` 用它判断本地/远程 |
+| **本节点该起哪些** | `topology.for_node(cfg, node_id)` | 决定这个进程启动哪些 actor |
+
+> 记法：**节点 = 进程；实例 = 一个 actor；组 = 一张"名字→实例名单"表；拓扑 = 上面那段配置表本身。**
+
 ## 4. 关键：业务代码不关心拓扑
 
 服务之间用**逻辑名**调用：
