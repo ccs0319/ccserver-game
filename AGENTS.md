@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 1.3.0
+version: 1.4.0
 status: stable
 last_updated: 2026-10-13
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -122,6 +122,7 @@ scripts/          # 一键启停 / 依赖拉起 / 上游同步脚本
 docker-compose.yml# 本地依赖：Redis / MySQL / PostgreSQL / MongoDB
 Makefile          # 开发任务入口（make help）
 docs/             # 模块文档；docs/agent/ 为 agent 记忆层
+learn/            # 面向新人的学习路线（客户端程序员 → 游戏服务器，入门到精通）
 ```
 
 ---
@@ -250,6 +251,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-13 | 1.4.0 | 新增 `learn/` 学习路线（客户端程序员 → 游戏服务器，入门到精通，12 篇：思维差异/请求链路/并发/Actor 与 Service/拓扑/消息协议/状态会话/多进程/数据/可靠性/精通/术语与代码地图）。 |
 | 2026-10-13 | 1.3.0 | 会话跨网关（gateway 无状态化）：`ccserver.session`（memory/redis 共享会话所有权）；gateway ENTER 读写共享会话并**跨网关顶号**（`router.call(prev.gateway,"kick",uid)`）；`test_session` 实测通过（需 Redis）。 |
 | 2026-10-13 | 1.2.0 | 多实例与容灾：`ccserver.router` 服务组（轮询 + 熔断 + failover）；lobby 多实例（lobby_1/lobby_2）；`test_failover`（实测通过）；`CONTRIBUTING.md` + `scripts/smoke.sh`（`make smoke` 端到端）。 |
 | 2026-10-13 | 1.1.0 | etcd 生产化节点发现：`ccserver.discovery`（etcd 注册/解析 + lease/keepalive）+ `app/discovery.lua` HTTP adapter（etcd→cluster 契约）；`topology.etcd.lua` + `scripts/run-cluster-etcd.sh`；实测 2 节点跨节点路由与**租约过期自动注销**；`docs/discovery.md`（`make test-multinode-etcd`）。 |
