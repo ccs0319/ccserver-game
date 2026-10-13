@@ -64,6 +64,7 @@ db-reset: ## Stop local dependencies and wipe data
 test-db: ## Run database integration tests (needs local deps)
 	./target/release/moon_rs assets/test/test_db_stack.lua
 	./target/release/moon_rs assets/test/test_migration.lua
+	./target/release/moon_rs assets/test/test_session.lua
 
 test-lua: ## Run Lua integration tests that need no external services
 	./target/release/moon_rs assets/test/test_topology.lua

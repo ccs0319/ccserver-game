@@ -20,6 +20,7 @@ local protocol = require("ccserver.protocol")
 local metrics = require("ccserver.metrics")
 local trace = require("ccserver.trace")
 local ratelimit = require("ccserver.ratelimit")
+local session = require("ccserver.session")
 
 local MSG = protocol.MSG
 local TYPE = protocol.TYPE
@@ -29,6 +30,11 @@ local sessions = {}
 ---@type table<integer, integer> uid -> fd (active session)
 local by_uid = {}
 local active_connections = 0
+
+-- Identity + shared session store (set in on_start).
+local gateway_name
+local gateway_node
+local session_store
 
 -- Rate limit defaults (per connection); overridable via config/env.
 local rate_per_sec = 20
@@ -69,6 +75,9 @@ local function close_session(fd)
     sessions[fd] = nil
     if s.uid and by_uid[s.uid] == fd then
         by_uid[s.uid] = nil
+        if session_store then
+            session_store.del(s.uid, gateway_name)
+        end
     end
     socket.close(fd)
 end
@@ -123,7 +132,21 @@ function handlers.ENTER(s, seq, token, zone)
         return
     end
 
-    -- 顶号: kick any existing session bound to this uid.
+    -- Cross-gateway 顶号: if another gateway owns this uid, ask it to kick.
+    if session_store then
+        local prev = session_store.get(auth.uid)
+        if prev and prev.gateway and prev.gateway ~= gateway_name then
+            pcall(function() router.call(prev.gateway, "kick", auth.uid) end)
+        end
+        session_store.set(auth.uid, {
+            gateway = gateway_name,
+            node = gateway_node,
+            zone = zone,
+            ts = os.time(),
+        })
+    end
+
+    -- 顶号: kick any existing local session bound to this uid.
     local old = by_uid[auth.uid]
     if old and old ~= s.fd then
         local old_s = sessions[old]
@@ -240,8 +263,45 @@ end
 
 service.run({
     name = "gateway",
-    commands = {}, -- client-facing; no internal RPC commands
+    commands = {
+        -- Internal: another gateway asks this one to kick a uid (cross-gateway 顶号).
+        kick = function(_, uid)
+            local fd = by_uid[uid]
+            if fd then
+                local s = sessions[fd]
+                if s then
+                    notify(s, MSG.KICK, "account logged in elsewhere")
+                end
+                close_session(fd)
+                return true
+            end
+            return false, "not online here"
+        end,
+    },
     on_start = function(self)
+        gateway_name = self.name
+        gateway_node = self.node
+
+        -- Shared session store: default to memory, upgrade to Redis async (a
+        -- Redis connect yields, which is not allowed during actor init).
+        local sc = self.config.session or {}
+        session_store = session.memory()
+        if sc.redis_url then
+            moon.async(function()
+                local db = require("moon.db")
+                local conn_name = "gw_session_" .. tostring(gateway_name)
+                local ok = pcall(function()
+                    db.setup { redis = { { name = conn_name, url = sc.redis_url } } }
+                end)
+                if ok then
+                    session_store = session.redis(db.redis(conn_name), sc.prefix, sc.ttl)
+                    moon.info("gateway: shared session store (redis)")
+                else
+                    moon.warn("gateway: session redis unavailable, using memory store")
+                end
+            end)
+        end
+
         local rate = self.config.rate or {}
         rate_per_sec = tonumber(rate.per_sec or os.getenv("CCS_GATEWAY_RATE")) or rate_per_sec
         rate_burst = tonumber(rate.burst or os.getenv("CCS_GATEWAY_BURST")) or rate_burst

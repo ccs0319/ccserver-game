@@ -22,6 +22,7 @@ return {
         gateway = { source = "ccserver.services.gateway", unique = true, config = {
             addr = env("CCS_GATEWAY_ADDR", "0.0.0.0:9001"),
             worlds = { [1] = "world_1", [2] = "world_2" },
+            session = { redis_url = env("CCS_REDIS_URL", "redis://127.0.0.1:6379/0") },
         } },
         login   = { source = "ccserver.services.login",   unique = true },
         lobby_1 = { source = "ccserver.services.lobby",   unique = true },

@@ -76,6 +76,35 @@ client                         gateway                     backend
 - **Errors never hang.** Handler errors are caught and returned as
   `ERROR (false, err)`; unknown msgids likewise.
 
+## Cross-gateway sessions (stateless gateways)
+
+A gateway keeps its live connections locally, but **session ownership** lives in
+a shared store (`ccserver.session`) so any gateway can see who owns a uid:
+
+| Backend | Use |
+| --- | --- |
+| `session.memory()` | per-actor, single-gateway dev (default) |
+| `session.redis(conn)` | shared, production (Redis + TTL) |
+
+Gateway config `session = { redis_url = "redis://…", prefix, ttl }` enables the
+Redis backend (falls back to memory if Redis is unreachable).
+
+On ENTER the gateway:
+
+1. reads `session:<uid>`; if another gateway owns it, asks that gateway to kick
+   (`router.call(prev.gateway, "kick", uid)` — local or cross-node via cluster);
+2. writes `session:<uid> = { gateway, node, zone, ts }`;
+3. kicks its own previous local session for the uid (顶号).
+
+On disconnect it removes the record only if it still owns it. This makes
+**顶号 work across gateways/processes** and lets clients reconnect to any
+gateway (tokens are stateless; just re-ENTER). Verified by
+`assets/test/test_session.lua`.
+
+> Note: the native Redis pool is process-global keyed by connection name, so each
+> gateway uses a distinct name (`gw_session_<gateway>`); reusing a name in another
+> actor would shut down the previous pool.
+
 ## Gateway configuration
 
 Set in the topology (`services.gateway.config.addr`) or via env

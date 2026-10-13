@@ -32,6 +32,7 @@ phase: M6
 - [x] **world 分片 + 多节点**：world 按 `config.zone` 分片（world_1..N），gateway 按 zone 路由；`topology.multinode.lua` + `scripts/{run,stop}-cluster.sh`；`test_sharding`（单机）、`test_multinode`（2 节点跨节点实测通过）。
 - [x] **etcd 生产化发现**：`ccserver.discovery`（etcd 注册 + lease/keepalive）+ `app/discovery.lua` adapter；`topology.etcd.lua` + `scripts/run-cluster-etcd.sh`；实测跨节点路由与**租约过期自动注销**（`make test-multinode-etcd`）。
 - [x] **多实例与容灾**：`ccserver.router` 服务组（轮询 + 熔断 + failover）；lobby 多实例（lobby_1/lobby_2）；`test_failover` 实测通过。
+- [x] **会话跨网关（无状态化）**：`ccserver.session`（memory/redis 共享会话所有权）；gateway ENTER 读写共享会话并跨网关顶号（`router.call(prev.gateway,"kick",uid)`）；`test_session` 实测通过（需 Redis）。
 - [x] **工程化**：`CONTRIBUTING.md`；`scripts/smoke.sh`（`make smoke` 端到端）。
 - [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_sharding`、`test_failover`、`test_multinode`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
 
@@ -45,9 +46,12 @@ phase: M6
   `f(s, table.unpack(args), seq)` 只传一个 arg；应把额外值并入 args 后 `f(s, table.unpack(args))`。
 - **网关处理器签名**：`handler(session, seq, ...args)` —— `seq` 固定为第二个参数，
   避免客户端省略尾部参数时 `seq` 错位（曾导致 `MOVE` 响应 seq 丢失、客户端挂起）。
+- **Redis 连接池按名全局注册**：同一进程内多个 actor 用**同名**连接会互相顶掉（"shutting down the previous pool"）；
+  每实例用独立名（如 `gw_session_<service>`）。
+- **actor init 内不可 yield**：service 的 `on_start` 在 C 调用链中执行，若其中直接 `moon.wait`（如 redis connect）
+  会报 "cannot resume dead coroutine"；需 `moon.async` 派生协程做异步初始化。
 - **socket 回调内不可 yield**：消息回调协程被池化，处理器需 `moon.async` 派生协程后再 `moon.call`。
-- **服务是独立 actor（各自 lua_State）**：`cluster` 模块的 `NODE` 是 per-state 值，服务内不可依赖它做本地判断。
-  `ccserver.router` 采用**本地优先**：按 `service_nodes` 映射比较自身 node，本地走 `moon.call`，远程才走 `cluster.call`。
+- **服务是独立 actor（各自 lua_State）**：`cluster` 模块的 `NODE` 是 per-state 值，服务内不可依赖它做本地判断。  `ccserver.router` 采用**本地优先**：按 `service_nodes` 映射比较自身 node，本地走 `moon.call`，远程才走 `cluster.call`。
   服务通过 `new_service` 的 `routing`/`node` 参数获得映射并 `router.configure`。
 - **服务需 `unique = true`** 才能按名字寻址（`moon.query(name)` 只对 unique 有效），cluster 路由也依赖名字。
 - `loadfile` 在本运行时返回陈旧内容：读 Lua 文件用 `load(io.readfile(path), "@"..path)`。

@@ -228,6 +228,18 @@
 - Consequences: lobby_1/lobby_2 轮询 + 停一个自动切换（`test_failover` 实测）；gateway 侧 ENTER 经组名路由。
   注意：failover 会重试，处理器需幂等或容忍重试；会话仍绑定在单个 gateway（跨网关迁移列为后续）。
 
+## ADR-021: 会话所有权外置到共享存储，实现跨网关顶号
+
+- Date: 2026-10-13
+- Status: Accepted
+- Context: 会话原为 gateway 本地状态，多网关下同一账号可在不同网关各持一个会话（无法跨网关顶号）。
+- Decision: 新增 `ccserver.session`（后端 `memory` 单机 / `redis` 共享，含 TTL）；gateway 在 ENTER 时读共享会话，
+  若属主是**其它网关**则 `router.call(prev.gateway, "kick", uid)`（本地或经 cluster）令其踢线，再写入新属主；
+  断开时仅当自己仍是属主才删除。每网关用独立 redis 连接名（进程级池按名注册，同名会互相顶掉）。
+- Consequences: 跨网关/跨进程顶号成立（`test_session` 实测，需 Redis）；客户端可重连到任意网关（token 无状态，重发 ENTER）。
+  gateway 对会话只保留连接（fd），属主信息外置，为无状态化铺路。注意 redis 连接名与 init 内不可 yield 的约束。
+
+
 
 
 
