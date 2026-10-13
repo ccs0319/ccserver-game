@@ -24,18 +24,24 @@ return {
             worlds = { [1] = "world_1", [2] = "world_2" },
         } },
         login   = { source = "ccserver.services.login",   unique = true },
-        lobby   = { source = "ccserver.services.lobby",   unique = true },
+        lobby_1 = { source = "ccserver.services.lobby",   unique = true },
+        lobby_2 = { source = "ccserver.services.lobby",   unique = true },
         world_1 = { source = "ccserver.services.world",   unique = true, config = { zone = 1 } },
         world_2 = { source = "ccserver.services.world",   unique = true, config = { zone = 2 } },
         admin   = { source = "ccserver.services.admin",   unique = true, config = {
             addr = env("CCS_ADMIN_ADDR", "0.0.0.0:9002"),
-            required_services = { "gateway", "login", "lobby", "world_1", "world_2" },
+            required_services = { "gateway", "login", "lobby_1", "lobby_2", "world_1", "world_2" },
         } },
     },
 
+    -- Multiple instances of a logical service: round-robin + failover.
+    groups = {
+        lobby = { "lobby_1", "lobby_2" },
+    },
+
     nodes = {
-        -- Single-node dev: all shards on node 1.
-        [1] = { services = { "gateway", "login", "lobby", "world_1", "world_2", "admin" } },
+        -- Single-node dev: all shards/instances on node 1.
+        [1] = { services = { "gateway", "login", "lobby_1", "lobby_2", "world_1", "world_2", "admin" } },
 
         -- Multi-node example: move world_2 to node 2 (set CCS_CLUSTER_LISTEN=1
         -- on each node, point CCS_DISCOVERY_URL at your registry, and use

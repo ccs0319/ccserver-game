@@ -70,12 +70,14 @@ end
 ---@return table service instance
 function M.run(spec, conf)
     conf = conf or {}
-    local name = spec.name or (type(conf) == "table" and conf.name) or moon.name
+    -- Prefer the registered instance name (from new_service) over the logical
+    -- name hardcoded in the service script, so `info`/logs identify the instance.
+    local name = (type(conf) == "table" and conf.name) or spec.name or moon.name
     local self = Service.new(name, conf)
     local commands = spec.commands or {}
 
     if type(conf) == "table" and conf.routing then
-        router.configure({ node_id = conf.node, services = conf.routing })
+        router.configure({ node_id = conf.node, services = conf.routing, groups = conf.groups })
     end
 
     moon.dispatch("lua", function(sender, session, cmd, ...)

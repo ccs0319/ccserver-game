@@ -217,6 +217,18 @@
 - Consequences: 动态发现 + 故障自动注销（已实测：停 node2 后 TTL 到期从 etcd 消失）；adapter 为单点读服务，
   生产需冗余部署；未来若 cluster 模块支持非 HTTP 发现可省去 adapter。
 
+## ADR-020: 逻辑服务用「服务组」做多实例轮询与 failover
+
+- Date: 2026-10-13
+- Status: Accepted
+- Context: 单一实例是单点；需要同一逻辑服务（如 lobby）多实例部署、负载均衡与故障转移。
+- Decision: topology 增加 `groups`（逻辑名 → 实例名列表）；`ccserver.router` 对组名做**轮询**分发，
+  单个实例失败（连接错/处理器返回 false/熔断打开）时**failover** 到下一个实例，并用 `ccserver.breaker`
+  按实例熔断。服务实例名以 `new_service` 注册名（`conf.name`）为准（`info`/日志据此标识实例）。
+- Consequences: lobby_1/lobby_2 轮询 + 停一个自动切换（`test_failover` 实测）；gateway 侧 ENTER 经组名路由。
+  注意：failover 会重试，处理器需幂等或容忍重试；会话仍绑定在单个 gateway（跨网关迁移列为后续）。
+
+
 
 
 

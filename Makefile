@@ -8,7 +8,7 @@ CARGO ?= cargo
 
 .PHONY: help build check test fmt fmt-check clippy agent-check lint \
         run start stop restart status db-up db-down db-reset test-db test-lua backup verify-backup restore bench \
-        cluster-up cluster-down test-multinode cluster-etcd-up test-multinode-etcd clean
+        cluster-up cluster-down test-multinode cluster-etcd-up test-multinode-etcd smoke clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -69,6 +69,7 @@ test-lua: ## Run Lua integration tests that need no external services
 	./target/release/moon_rs assets/test/test_topology.lua
 	./target/release/moon_rs assets/test/test_gateway.lua
 	./target/release/moon_rs assets/test/test_sharding.lua
+	./target/release/moon_rs assets/test/test_failover.lua
 	./target/release/moon_rs assets/test/test_config.lua
 	./target/release/moon_rs assets/test/test_observability.lua
 	./target/release/moon_rs assets/test/test_reliability.lua
@@ -106,6 +107,9 @@ restore: ## Restore from the newest backup (RESTORE=latest or a timestamp)
 
 bench: ## Gateway load test (CONN=100 SEC=5 MSG=PING)
 	scripts/bench.sh
+
+smoke: build ## End-to-end smoke: start app, check /ready, run a client flow, stop
+	scripts/smoke.sh
 
 clean: ## Remove build artifacts
 	$(CARGO) clean

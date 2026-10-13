@@ -13,8 +13,8 @@ phase: M6
 
 ## 进行中
 
-- [ ] 更多服务拆分与容灾（gateway/lobby 多实例、故障转移）。
-- [ ] CONTRIBUTING 与更多端到端测试。
+- [ ] 更多端到端测试与压测扩展（多节点压测、长稳测试）。
+- [ ] 会话跨网关迁移（gateway 无状态化）——当前会话绑定在单个 gateway。
 
 ## 已完成
 
@@ -31,7 +31,9 @@ phase: M6
 - [x] **M6 CI/CD 与压测**：`.github/workflows/ci.yml`（fmt/clippy/test/build/lua-tests/db-tests）；`benchmark_gateway.lua` + `scripts/bench.sh` + `docs/benchmark.md`（单机 ~170k req/s）。
 - [x] **world 分片 + 多节点**：world 按 `config.zone` 分片（world_1..N），gateway 按 zone 路由；`topology.multinode.lua` + `scripts/{run,stop}-cluster.sh`；`test_sharding`（单机）、`test_multinode`（2 节点跨节点实测通过）。
 - [x] **etcd 生产化发现**：`ccserver.discovery`（etcd 注册 + lease/keepalive）+ `app/discovery.lua` adapter；`topology.etcd.lua` + `scripts/run-cluster-etcd.sh`；实测跨节点路由与**租约过期自动注销**（`make test-multinode-etcd`）。
-- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_sharding`、`test_multinode`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
+- [x] **多实例与容灾**：`ccserver.router` 服务组（轮询 + 熔断 + failover）；lobby 多实例（lobby_1/lobby_2）；`test_failover` 实测通过。
+- [x] **工程化**：`CONTRIBUTING.md`；`scripts/smoke.sh`（`make smoke` 端到端）。
+- [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_sharding`、`test_failover`、`test_multinode`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
 
 ## 阻塞项
 

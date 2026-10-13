@@ -20,7 +20,9 @@
 - [x] **M6 CI/CD 与压测**：`.github/workflows/ci.yml` + `benchmark_gateway.lua`/`scripts/bench.sh` + `docs/benchmark.md`。
 - [x] **world 分片 + 多节点**：zone 分片 + gateway 按 zone 路由 + 2 节点跨节点实测（`make test-multinode`）。
 - [x] **etcd 生产化发现**：`ccserver.discovery` + adapter + `topology.etcd.lua`（`make test-multinode-etcd`，租约过期实测）。
-- [ ] 更多服务拆分与容灾（gateway/lobby 多实例、故障转移）。
+- [x] **多实例与容灾**：`ccserver.router` 服务组（轮询+熔断+failover）；lobby_1/lobby_2；`test_failover` 实测。
+- [x] **工程化**：`CONTRIBUTING.md` + `scripts/smoke.sh`（`make smoke`）。
+- [ ] 多节点压测与长稳测试；会话跨网关迁移（gateway 无状态化）。
 
 ## P1 — 工程化
 

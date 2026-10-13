@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 1.1.0
+version: 1.2.0
 status: stable
 last_updated: 2026-10-13
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -115,7 +115,7 @@ lualib/           # 面向用户的 Lua API 与封装（moon.lua、socket、http
   moon/db/*.lua   # 各驱动封装 + migration.lua（结构迁移）
   moon/config.lua # 配置加载 + 热重载
   moon/hotreload.lua # 基于 hotfix 的代码热更
-  ccserver/       # 游戏服务器框架层：service.lua/router.lua/topology.lua/node.lua/protocol.lua + services/
+  ccserver/       # 游戏服务器框架层：service/router/topology/node/protocol/discovery/metrics/health/trace/ratelimit/breaker/secrets + services/
 app/              # 参考应用：main.lua（入口）+ config/topology.lua（服务拓扑）
 assets/           # 示例、benchmark、Lua 集成测试脚本；assets/migration/ 迁移示例
 scripts/          # 一键启停 / 依赖拉起 / 上游同步脚本
@@ -211,7 +211,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 - [~] **P5 数据层**：统一 `moon.db`（Redis + SQLx[MySQL/PG/SQLite] + 可选 Mongo/pg）、
   结构迁移（`moon.db.migration`）、配置热更、集成测试已就绪；待补热更分发与连接池调优。
 - [~] **P6 分布式**：cluster 节点发现（**etcd 生产化** + 静态 HTTP）+ 跨节点消息已就绪并**实测**
-  （2 节点，world 按 zone 分片，租约过期自动注销）；待补更多服务拆分与容灾。
+  （2 节点，world 按 zone 分片，租约过期自动注销）；服务组多实例（轮询+熔断+failover）已就绪并实测。
 - [~] **P7 示例与压测**：`example_db` / `example_server` 与 db/migration/hotreload 测试已就绪；
   待补完整游戏 demo 与 benchmark。
 
@@ -250,6 +250,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-13 | 1.2.0 | 多实例与容灾：`ccserver.router` 服务组（轮询 + 熔断 + failover）；lobby 多实例（lobby_1/lobby_2）；`test_failover`（实测通过）；`CONTRIBUTING.md` + `scripts/smoke.sh`（`make smoke` 端到端）。 |
 | 2026-10-13 | 1.1.0 | etcd 生产化节点发现：`ccserver.discovery`（etcd 注册/解析 + lease/keepalive）+ `app/discovery.lua` HTTP adapter（etcd→cluster 契约）；`topology.etcd.lua` + `scripts/run-cluster-etcd.sh`；实测 2 节点跨节点路由与**租约过期自动注销**；`docs/discovery.md`（`make test-multinode-etcd`）。 |
 | 2026-10-12 | 1.0.0 | world 分片 + 多节点实测：world 服务按 `config.zone` 分片（world_1..N），gateway 按 zone 路由；`app/config/topology.multinode.lua` + `scripts/{run,stop}-cluster.sh`（discovery+2 节点）；`test_sharding`（单机分片）、`test_multinode`（跨节点实测通过，`make test-multinode`）。M1–M6 全部完成，标记 stable。 |
 | 2026-10-10 | 0.9.0 | M6 CI/CD 与压测：`.github/workflows/ci.yml`（fmt/clippy/test/build + Lua 集成测试 + db 服务测试）；`assets/benchmark/benchmark_gateway.lua` + `scripts/bench.sh`（`make bench`）；`docs/benchmark.md`（单机基线 ~170k req/s）；修复网关参数错位（seq 固定为第二参数）。 |

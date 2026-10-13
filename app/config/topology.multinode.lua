@@ -27,17 +27,22 @@ return {
             worlds = { [1] = "world_1", [2] = "world_2" },
         } },
         login   = { source = "ccserver.services.login",   unique = true },
-        lobby   = { source = "ccserver.services.lobby",   unique = true },
+        lobby_1 = { source = "ccserver.services.lobby",   unique = true },
+        lobby_2 = { source = "ccserver.services.lobby",   unique = true },
         world_1 = { source = "ccserver.services.world",   unique = true, config = { zone = 1 } },
         world_2 = { source = "ccserver.services.world",   unique = true, config = { zone = 2 } },
         admin   = { source = "ccserver.services.admin",   unique = true, config = {
             addr = env("CCS_ADMIN_ADDR", "0.0.0.0:9002"),
-            required_services = { "gateway", "login", "lobby" },
+            required_services = { "gateway", "login", "lobby_1", "lobby_2" },
         } },
     },
 
+    groups = {
+        lobby = { "lobby_1", "lobby_2" },
+    },
+
     nodes = {
-        [1] = { services = { "gateway", "login", "lobby", "world_1", "admin" } },
+        [1] = { services = { "gateway", "login", "lobby_1", "lobby_2", "world_1", "admin" } },
         [2] = { services = { "world_2" } },
     },
 }

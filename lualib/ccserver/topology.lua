@@ -56,6 +56,18 @@ function M.validate(cfg)
                 string.format("ccserver.topology: node %s references unknown service '%s'", tostring(node), tostring(sname)))
         end
     end
+
+    if cfg.groups then
+        for gname, instances in pairs(cfg.groups) do
+            assert(type(instances) == "table",
+                string.format("ccserver.topology: group '%s' must be a list", tostring(gname)))
+            for _, sname in ipairs(instances) do
+                assert(cfg.services[sname],
+                    string.format("ccserver.topology: group '%s' references unknown service '%s'", tostring(gname), tostring(sname)))
+            end
+        end
+    end
+
     return cfg
 end
 
@@ -80,6 +92,13 @@ function M.service_nodes(cfg)
         end
     end
     return map
+end
+
+--- Service groups (`logical name -> { instance names }`).
+---@param cfg table
+---@return table<string, string[]>
+function M.groups(cfg)
+    return cfg.groups or {}
 end
 
 --- Resolve the startup plan for one node.

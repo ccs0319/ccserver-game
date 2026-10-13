@@ -75,7 +75,8 @@ function M.start(cfg, node_id)
     end
 
     local routing = topology.service_nodes(cfg)
-    router.configure({ node_id = node_id, services = routing })
+    local groups = topology.groups(cfg)
+    router.configure({ node_id = node_id, services = routing, groups = groups })
 
     local handles = {}
     for _, spec in ipairs(plan.services) do
@@ -86,6 +87,7 @@ function M.start(cfg, node_id)
             node = node_id,
             service = spec.name,
             routing = routing,
+            groups = groups,
             config = spec.config,
         })
         if not id or id == 0 then
