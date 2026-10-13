@@ -19,7 +19,8 @@
 - [x] **M5 可靠性与安全**：`ccserver.ratelimit`/`breaker`/`secrets` + gateway 限流/优雅 drain + 备份 sha256 校验。
 - [x] **M6 CI/CD 与压测**：`.github/workflows/ci.yml` + `benchmark_gateway.lua`/`scripts/bench.sh` + `docs/benchmark.md`。
 - [x] **world 分片 + 多节点**：zone 分片 + gateway 按 zone 路由 + 2 节点跨节点实测（`make test-multinode`）。
-- [ ] etcd 生产化节点发现；更多服务拆分与容灾。
+- [x] **etcd 生产化发现**：`ccserver.discovery` + adapter + `topology.etcd.lua`（`make test-multinode-etcd`，租约过期实测）。
+- [ ] 更多服务拆分与容灾（gateway/lobby 多实例、故障转移）。
 
 ## P1 — 工程化
 

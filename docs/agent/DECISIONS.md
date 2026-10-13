@@ -204,6 +204,20 @@
 - Consequences: 单机可多分片、跨机可分节点，代码零改动；已实测 zone2 请求经 node1 网关落到 node2 的 world_2。
   局限：示例用 HTTP registry（生产用 etcd）、未做 gateway/lobby 多实例与故障转移，列为后续。
 
+## ADR-019: 生产化节点发现用 etcd（lease）+ HTTP adapter
+
+- Date: 2026-10-13
+- Status: Accepted
+- Context: 静态 node.json 无法满足生产（动态上下线、故障自动注销）。原生 cluster 模块的发现契约是
+  HTTP（`GET discovery_url` 返回 host:port），与 etcd 的 gRPC API 不匹配。
+- Decision: 节点用 `ccserver.discovery` 直连 etcd（gRPC，`moon.db.etcd`）注册 `<prefix><node_id>` 并持
+  **lease + keepalive**（节点死亡→租约过期→自动注销）；另起 `app/discovery.lua` **HTTP adapter** 读 etcd 并
+  按 cluster 契约应答 `/cluster?node=N`（只读）。节点需 `CCS_CLUSTER_ADDR`（自身 cluster 地址）。
+  etcd 客户端复用 `assets/example/grpc/etcd.pb` 描述符（自动探测路径，可 `CCS_ETCD_PROTO` 覆盖）。
+- Consequences: 动态发现 + 故障自动注销（已实测：停 node2 后 TTL 到期从 etcd 消失）；adapter 为单点读服务，
+  生产需冗余部署；未来若 cluster 模块支持非 HTTP 发现可省去 adapter。
+
+
 
 
 

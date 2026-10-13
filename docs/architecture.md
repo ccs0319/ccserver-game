@@ -123,8 +123,10 @@ scripts/stop-cluster.sh     # or: make cluster-down
 
 `make test-multinode` does all of the above. Discovery is the HTTP registry in
 `assets/example/cluster/cluster_etc.lua` backed by `app/config/node.json`
-(node id → cluster address). In production use etcd
-(`lualib/moon/db/etcd.lua`). Each node sets `CCS_CLUSTER_LISTEN=1`.
+(node id → cluster address). For **production**, use **etcd** with the
+`app/discovery.lua` adapter — see [`discovery.md`](discovery.md)
+(`scripts/run-cluster-etcd.sh`, `make test-multinode-etcd`). Each node sets
+`CCS_CLUSTER_LISTEN=1`.
 
 **Verified**: the cross-node test enters zone 2 through node 1's gateway and the
 request is served by `world_2` on node 2 (see `assets/test/test_multinode.lua`).

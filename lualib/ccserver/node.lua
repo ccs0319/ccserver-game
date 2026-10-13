@@ -40,6 +40,31 @@ function M.start(cfg, node_id)
     local enabled = cl.enabled ~= false
 
     if enabled then
+        -- Production discovery: register this node's cluster address in etcd
+        -- (with a lease + keepalive) before the cluster resolves/binds it.
+        if cl.etcd then
+            local discovery = require("ccserver.discovery")
+            local reg, derr = discovery.registry({
+                endpoint = cl.etcd.endpoint,
+                prefix = cl.etcd.prefix,
+                ttl = cl.etcd.ttl,
+                proto = cl.etcd.proto,
+            })
+            if not reg then
+                error("ccserver.node: etcd connect failed: " .. tostring(derr))
+            end
+            local self_addr = cl.etcd.self_addr or os.getenv("CCS_CLUSTER_ADDR")
+            if not self_addr then
+                error("ccserver.node: CCS_CLUSTER_ADDR (or cluster.etcd.self_addr) required for etcd discovery")
+            end
+            local ok, rerr = reg:register(node_id, self_addr)
+            if not ok then
+                error("ccserver.node: etcd register failed: " .. tostring(rerr))
+            end
+            M._registry = reg
+            moon.info(string.format("node %d registered in etcd (%s)", node_id, self_addr))
+        end
+
         local cluster = require("moon.cluster")
         if not cluster.init(node_id, cl.discovery_url or "") then
             error("ccserver.node: cluster.init failed")
@@ -82,6 +107,10 @@ end
 
 --- Gracefully stop the node (services receive the shutdown signal separately).
 function M.stop()
+    if M._registry then
+        pcall(function() M._registry:close() end)
+        M._registry = nil
+    end
     local ok, cluster = pcall(require, "moon.cluster")
     if ok then
         pcall(cluster.shutdown)

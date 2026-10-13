@@ -8,7 +8,7 @@ CARGO ?= cargo
 
 .PHONY: help build check test fmt fmt-check clippy agent-check lint \
         run start stop restart status db-up db-down db-reset test-db test-lua backup verify-backup restore bench \
-        cluster-up cluster-down test-multinode clean
+        cluster-up cluster-down test-multinode cluster-etcd-up test-multinode-etcd clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -82,6 +82,15 @@ cluster-down: ## Stop the local cluster
 
 test-multinode: build ## Launch the cluster, run the cross-node routing test, stop
 	scripts/run-cluster.sh
+	sleep 2
+	-CCS_BENCH_ADDR=127.0.0.1:9001 ./target/release/moon_rs assets/test/test_multinode.lua
+	scripts/stop-cluster.sh
+
+cluster-etcd-up: ## Launch a 2-node cluster with etcd discovery (docker etcd + adapter + nodes)
+	scripts/run-cluster-etcd.sh
+
+test-multinode-etcd: build ## etcd cluster + cross-node routing test + stop
+	scripts/run-cluster-etcd.sh
 	sleep 2
 	-CCS_BENCH_ADDR=127.0.0.1:9001 ./target/release/moon_rs assets/test/test_multinode.lua
 	scripts/stop-cluster.sh
