@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 1.6.0
+version: 1.7.0
 status: stable
 last_updated: 2026-10-14
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -252,6 +252,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-14 | 1.7.0 | 对外协议 payload 可切换：`protocol.set_codec("seri"|"json"|"raw")`（拓扑 `protocol.codec`，env `CCS_PROTOCOL_CODEC`；默认 seri）；客户端库 `ccsclient` 增 `json` 特征（`codec::json`，serde）与 protobuf(raw) 用法；`test_protocol_codec`（JSON 端到端实测通过）。 |
 | 2026-10-14 | 1.6.0 | 新增跨平台客户端协议库 `sdk/ccsclient`（Rust）：帧+编解码（对齐 `ccserver/protocol.lua`），传输由宿主提供；原生 TCP（`native`）+ WASM 导出（`wasm`，供微信小游戏 JS 持 socket）；已验证 wasm32/iOS/Android/Windows 目标可编译，单测 4/4；`sdk/README.md` + 微信 JS 示例。 |
 | 2026-10-14 | 1.5.0 | 模块化消息：模块在拓扑声明 `client = { <客户端消息> = <命令> }`，`protocol.build` 确定性分配 msgid（≥1000，组→逻辑名，去重），网关自动转发 `router.call(service, cmd, uid, ...)`；admin `/messages` 暴露消息表；`test_module_messages`（实测通过）；`docs/protocol.md` + `learn/11` 更新。 |
 | 2026-10-13 | 1.4.1 | `learn/` 在流程教程内嵌「名词→代码对象」对照：02（节点/actor/service/实例/组/拓扑/router/cluster/dispatch 逐词落到代码）、04（服务/实例/组/节点对应对象）、05（拓扑各段对应对象）。 |

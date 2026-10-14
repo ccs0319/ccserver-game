@@ -12,6 +12,10 @@ local function env(name, default)
 end
 
 return {
+    -- Client wire-protocol payload codec: "seri" (default) | "json" | "raw".
+    -- Keep the client SDK in sync (see sdk/ccsclient).
+    protocol = { codec = env("CCS_PROTOCOL_CODEC", "seri") },
+
     cluster = {
         enabled = env("CCS_CLUSTER", "1") ~= "0",
         discovery_url = env("CCS_DISCOVERY_URL", "http://127.0.0.1:2379/cluster?node={}"),

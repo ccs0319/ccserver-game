@@ -17,6 +17,17 @@ body  = [version: u8][type: u8][msgid: u16 BE][seq: u32 BE][payload...]
 - `payload` 对库是**不透明字节**：由你决定编码（JSON / protobuf / 自定义），库不管内容。
 - `type`：REQUEST=1 / RESPONSE=2 / NOTIFY=3；`version` 当前 = 1。
 
+### 载荷编解码帮助
+
+- **JSON**（`feature = "json"`）：`codec::json::encode_args(&args)` / `decode_args::<T>(bytes)`，
+  与服务器 `protocol = { codec = "json" }` 对齐（服务器把参数编成 JSON 数组）。
+- **protobuf**：用你 `prost` 生成的类型，`msg.encode_to_vec()` 直接当 payload 字节即可
+  （服务器用 `protocol = { codec = "raw" }`，payload 原样透传，由服务按 schema 解码）。
+- **seri**：仅当客户端也在 Lua 运行时才有意义，跨语言不建议。
+
+> 服务器对外协议编解码可切换：`protocol = { codec = "seri" | "json" | "raw" }`（见 `docs/protocol.md`）。
+> 客户端必须与服务器用同一种。
+
 > 注意：服务器当前 payload 用的是 `seri`。客户端要么用 seri，要么把服务器 payload 换成
 > 客户端也支持的编码（JSON/protobuf）——框架的 payload 编解码是可替换的。
 

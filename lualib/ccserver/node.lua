@@ -78,6 +78,7 @@ function M.start(cfg, node_id)
     local routing = topology.service_nodes(cfg)
     local groups = topology.groups(cfg)
     local client = protocol.build(cfg)   -- module client-message map (deterministic)
+    local codec = cfg.protocol and cfg.protocol.codec or "seri"
     router.configure({ node_id = node_id, services = routing, groups = groups })
 
     local handles = {}
@@ -91,6 +92,7 @@ function M.start(cfg, node_id)
             routing = routing,
             groups = groups,
             client = client,
+            codec = codec,
             config = spec.config,
         })
         if not id or id == 0 then

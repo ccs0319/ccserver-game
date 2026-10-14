@@ -23,6 +23,31 @@ payload = seri.packstring(...)     -- binary codec (swap for protobuf later)
 | `seq` | client-assigned request sequence; RESPONSE echoes it for correlation |
 | `payload` | codec-encoded Lua values |
 
+## Payload codec
+
+The body's `payload` bytes are produced by a **pluggable codec** (topology
+`protocol = { codec = ... }`, env `CCS_PROTOCOL_CODEC`; default `seri`):
+
+| codec | payload | notes |
+| --- | --- | --- |
+| `seri` (default) | moon binary serializer | fastest, Lua-native; not portable to other languages |
+| `json` | JSON **array** of the arguments | universal, debuggable; larger/slower |
+| `raw` | opaque bytes | caller pre-encodes (e.g. protobuf); no per-message framing |
+
+```lua
+-- app/config/topology.lua
+protocol = { codec = env("CCS_PROTOCOL_CODEC", "seri") }
+```
+
+The gateway sets its codec from the topology; **the client must use the same
+codec**. For `json`, the server encodes request/response arguments as a JSON
+array. For `raw`, the payload is passed through unchanged (use protobuf encoded
+by the caller).
+
+> Recommendation: keep `seri` for internal (service↔service) messages; for the
+> client edge prefer `json` (simple) or `raw`+protobuf (compact/fast). See
+> `sdk/ccsclient` for the client-side helpers.
+
 ## Message registry
 
 | id | name | direction | payload |

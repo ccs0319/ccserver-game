@@ -27,6 +27,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 pub mod client;
+pub mod codec;
 #[cfg(feature = "native")]
 pub mod native;
 #[cfg(feature = "wasm")]

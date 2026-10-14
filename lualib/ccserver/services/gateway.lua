@@ -303,6 +303,7 @@ service.run({
         gateway_name = self.name
         gateway_node = self.node
         client_routes = self.client and self.client.routes or nil
+        protocol.set_codec(self.codec or "seri")
 
         -- Shared session store: default to memory, upgrade to Redis async (a
         -- Redis connect yields, which is not allowed during actor init).

@@ -266,6 +266,20 @@
   （域名白名单、5 连接上限）由宿主遵守。局限：payload 编解码留给宿主（当前服务器用 seri，需对齐或切换为
   JSON/protobuf）；重连/心跳策略未封装。
 
+## ADR-024: 对外协议 payload 编解码可切换（seri/json/raw）
+
+- Date: 2026-10-14
+- Status: Accepted
+- Context: 服务端内部用 seri（Lua 原生、快），但异构客户端（Rust/JS/WASM）无法直接用 seri；
+  需要按部署选择载荷编码。
+- Decision: `ccserver.protocol` 增加 `set_codec("seri"|"json"|"raw")`（拓扑 `protocol.codec`，env
+  `CCS_PROTOCOL_CODEC`，默认 seri）；`json` 把参数编成 JSON 数组，`raw` 原样透传（供 protobuf）。
+  网关从拓扑读取并设置；客户端必须用同一种编码。`ccsclient` 增 `json` 特征（serde 帮助函数），
+  protobuf 由调用方用 prost 编码后作为 raw payload。
+- Consequences: 服务端内部仍用 seri；对外可按客户端能力选 json（简单）或 raw+protobuf（紧凑/快）。
+  `test_protocol_codec` 验证 JSON 端到端。注意：两端编码必须一致。
+
+
 
 
 

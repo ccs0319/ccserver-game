@@ -17,10 +17,26 @@
 --- connection after replying an error), so protocol evolution is explicit.
 
 local seri = require("seri")
+local json = require("json")
 
 local M = {}
 
 M.VERSION = 1
+
+--- Payload codec: `"seri"` (default, binary, Lua-native) | `"json"` |
+--- `"raw"` (payload is opaque bytes; use for protobuf, encoded by the caller).
+local codec = "seri"
+
+---@param name string "seri" | "json" | "raw"
+function M.set_codec(name)
+    assert(name == "seri" or name == "json" or name == "raw", "unknown payload codec: " .. tostring(name))
+    codec = name
+end
+
+---@return string
+function M.codec()
+    return codec
+end
 
 M.TYPE = {
     REQUEST = 1,
@@ -146,10 +162,18 @@ local HEADER_SIZE = 8
 ---@param mtype integer protocol.TYPE.*
 ---@param msgid integer
 ---@param seq integer
----@param ... any payload values (seri-encoded)
+---@param ... any payload values (per the configured codec)
 ---@return string
 function M.encode(mtype, msgid, seq, ...)
-    local payload = seri.packstring(...)
+    local payload
+    if codec == "json" then
+        payload = json.encode({ ... })
+    elseif codec == "raw" then
+        payload = (...)
+        assert(type(payload) == "string", "raw codec expects a single string payload")
+    else
+        payload = seri.packstring(...)
+    end
     return string.pack(HEADER, M.VERSION, mtype, msgid, seq or 0) .. payload
 end
 
@@ -168,16 +192,35 @@ function M.decode(body)
     if mtype ~= M.TYPE.REQUEST and mtype ~= M.TYPE.RESPONSE and mtype ~= M.TYPE.NOTIFY then
         return nil, string.format("invalid message type: %s", tostring(mtype))
     end
-    local args = table.pack(pcall(seri.unpack, body:sub(HEADER_SIZE + 1)))
-    if not args[1] then
-        return nil, "bad payload: " .. tostring(args[2])
+
+    local raw = body:sub(HEADER_SIZE + 1)
+    local args
+    if codec == "json" then
+        local ok, decoded = pcall(json.decode, raw)
+        if not ok then
+            return nil, "bad payload: " .. tostring(decoded)
+        end
+        if type(decoded) == "table" then
+            args = table.pack(table.unpack(decoded))
+        else
+            args = table.pack(decoded)
+        end
+    elseif codec == "raw" then
+        args = table.pack(raw)
+    else
+        local r = table.pack(pcall(seri.unpack, raw))
+        if not r[1] then
+            return nil, "bad payload: " .. tostring(r[2])
+        end
+        args = table.pack(table.unpack(r, 2, r.n))
     end
+
     return {
         version = version,
         type = mtype,
         msgid = msgid,
         seq = seq,
-        args = table.pack(table.unpack(args, 2, args.n)),
+        args = args,
     }
 end
 
