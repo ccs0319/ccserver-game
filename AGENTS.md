@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 1.7.0
+version: 1.8.0
 status: stable
 last_updated: 2026-10-14
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -252,6 +252,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-14 | 1.8.0 | 网关支持 WebSocket（微信小游戏传输）：网关重构为**传输无关**（会话携带 write/close 闭包），同一套处理器服务 TCP 与 WebSocket；`gateway.config.ws_addr`（env `CCS_GATEWAY_WS_ADDR`）；`test_gateway_ws` 实测通过。客户端 `ccsclient` 增原生 WebSocket 传输（`ws`，tungstenite，wss via rustls）+ 分帧模式（`new_message`）+ protobuf 示例（`proto`，prost）；`examples/ws_client.rs` 对 app 实测全链路通过。 |
 | 2026-10-14 | 1.7.0 | 对外协议 payload 可切换：`protocol.set_codec("seri"|"json"|"raw")`（拓扑 `protocol.codec`，env `CCS_PROTOCOL_CODEC`；默认 seri）；客户端库 `ccsclient` 增 `json` 特征（`codec::json`，serde）与 protobuf(raw) 用法；`test_protocol_codec`（JSON 端到端实测通过）。 |
 | 2026-10-14 | 1.6.0 | 新增跨平台客户端协议库 `sdk/ccsclient`（Rust）：帧+编解码（对齐 `ccserver/protocol.lua`），传输由宿主提供；原生 TCP（`native`）+ WASM 导出（`wasm`，供微信小游戏 JS 持 socket）；已验证 wasm32/iOS/Android/Windows 目标可编译，单测 4/4；`sdk/README.md` + 微信 JS 示例。 |
 | 2026-10-14 | 1.5.0 | 模块化消息：模块在拓扑声明 `client = { <客户端消息> = <命令> }`，`protocol.build` 确定性分配 msgid（≥1000，组→逻辑名，去重），网关自动转发 `router.call(service, cmd, uid, ...)`；admin `/messages` 暴露消息表；`test_module_messages`（实测通过）；`docs/protocol.md` + `learn/11` 更新。 |

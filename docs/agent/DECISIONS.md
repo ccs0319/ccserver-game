@@ -279,6 +279,19 @@
 - Consequences: 服务端内部仍用 seri；对外可按客户端能力选 json（简单）或 raw+protobuf（紧凑/快）。
   `test_protocol_codec` 验证 JSON 端到端。注意：两端编码必须一致。
 
+## ADR-025: 网关传输无关（TCP + WebSocket 同一套处理器）
+
+- Date: 2026-10-14
+- Status: Accepted
+- Context: 微信小游戏必须走 WebSocket；网关原为 TCP-only，若再写一套 WS 处理器会重复业务逻辑。
+- Decision: 网关把会话抽象为携带 `write`/`close` 闭包的对象（id 用 `t<fd>`/`w<id>` 前缀），
+  协议处理（decode→dispatch→reply）与传输无关；TCP 用 fd+帧协议，WebSocket 用每连接协程 + `ws.core`
+  （`ws_addr` 配置）。WebSocket 上每个消息 = 一个 body（不再加长度前缀）。客户端 `ccsclient` 相应提供
+  `Framing::Message`（`Client::new_message`）与原生 WS 传输（tungstenite）。
+- Consequences: 一套业务处理器同时服务 TCP 与 WS；微信小游戏经 WS 接入。注意 tungstenite `write` 需 `flush`
+  才真正发送；JSON 数字/字符串类型要一致（zone 做 `tonumber` 兼容）。
+
+
 
 
 

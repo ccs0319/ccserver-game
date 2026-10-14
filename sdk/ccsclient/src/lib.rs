@@ -28,10 +28,16 @@ use alloc::vec::Vec;
 
 pub mod client;
 pub mod codec;
+
+pub use client::{Client, Framing, Transport, TransportError};
 #[cfg(feature = "native")]
 pub mod native;
+#[cfg(feature = "proto")]
+pub mod proto;
 #[cfg(feature = "wasm")]
 pub mod wasm;
+#[cfg(feature = "ws")]
+pub mod ws;
 
 /// Protocol version understood by this library.
 pub const VERSION: u8 = 1;

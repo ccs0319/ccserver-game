@@ -13,6 +13,11 @@ publish = false
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]
 
+# Example needs the WebSocket transport + JSON payload helpers.
+[[example]]
+name = "ws_client"
+required-features = ["ws", "json"]
+
 [features]
 default = ["std"]
 # `std` is required for the native TCP transport and for Vec/String conveniences.
@@ -24,9 +29,15 @@ wasm = ["dep:wasm-bindgen", "dep:js-sys"]
 # JSON payload helpers (serde). Protobuf users bring their own prost types and
 # pass the encoded bytes as the opaque payload.
 json = ["dep:serde", "dep:serde_json"]
+# Native WebSocket transport (wss via rustls).
+ws = ["dep:tungstenite"]
+# Protobuf payload example (prost derive; no protoc needed).
+proto = ["dep:prost"]
 
 [dependencies]
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
+tungstenite = { version = "0.29", optional = true, default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
+prost = { version = "0.13", optional = true }

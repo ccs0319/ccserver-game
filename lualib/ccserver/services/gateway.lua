@@ -1,18 +1,22 @@
---- gateway service — client-facing edge.
+--- gateway service — client-facing edge (TCP **and** WebSocket).
 ---
---- Terminates client TCP connections, enforces the wire protocol (version
---- negotiation + framing), manages sessions, and orchestrates the backend
---- service graph (login / lobby / world). It holds **no** auth secrets: it only
---- forwards credentials to `login` and validates the token it issues.
+--- Terminates client connections (raw TCP or WebSocket — the latter is what a
+--- WeChat mini-game uses), enforces the wire protocol, manages sessions, and
+--- orchestrates the backend service graph. It holds **no** auth secrets.
 ---
---- Protocol: see `ccserver.protocol`. Sessions are bound on ENTER; logging in
---- the same account from a new connection kicks the previous one (顶号).
+--- The protocol handling is **transport-agnostic**: a session carries `write`
+--- and `close` closures, so the same handlers serve TCP (fd + frame protocol) and
+--- WebSocket (per-connection coroutine). Over WebSocket each message body is one
+--- WS binary message (no length framing needed); over TCP the runtime's frame
+--- protocol provides framing.
 ---
---- Config (topology `services.gateway.config`, or env `CCS_GATEWAY_ADDR`):
----   addr = "0.0.0.0:9001"
+--- Config (`services.gateway.config`, or env):
+---   addr     = "0.0.0.0:9001"   TCP listen (env CCS_GATEWAY_ADDR)
+---   ws_addr  = "0.0.0.0:9011"   WebSocket listen (env CCS_GATEWAY_WS_ADDR; optional)
 
 local moon = require("moon")
 local socket = require("moon.socket")
+local websocket = require("moon.websocket")
 local buffer = require("buffer")
 local service = require("ccserver.service")
 local router = require("ccserver.router")
@@ -25,28 +29,22 @@ local session = require("ccserver.session")
 local MSG = protocol.MSG
 local TYPE = protocol.TYPE
 
----@type table<integer, table> fd -> session
+---@type table<string, table> id -> session
 local sessions = {}
----@type table<integer, integer> uid -> fd (active session)
+---@type table<integer, string> uid -> session id
 local by_uid = {}
 local active_connections = 0
 
--- Identity + shared session store (set in on_start).
 local gateway_name
 local gateway_node
 local session_store
+local client_routes
 
--- Rate limit defaults (per connection); overridable via config/env.
 local rate_per_sec = 20
 local rate_burst = 40
 local drain_grace_ms = 300
 local draining = false
-
--- zone -> world shard service name; overridable via config.worlds.
 local worlds = { [1] = "world" }
-
--- Module client-message routing table (id -> {service, cmd, name}); set in on_start.
-local client_routes
 
 metrics.counter("ccserver_connections_total", "Client connections accepted")
 metrics.gauge("ccserver_connections_active", "Currently open client connections")
@@ -55,39 +53,44 @@ metrics.counter("ccserver_errors_total", "Errors returned to clients")
 metrics.counter("ccserver_rate_limited_total", "Client messages dropped by rate limit")
 metrics.histogram("ccserver_client_request_seconds", "Client request handling latency")
 
-local function send(fd, mtype, msgid, seq, ...)
-    if not sessions[fd] then
+--------------------------------------------------------------------------------
+-- Transport-agnostic send
+--------------------------------------------------------------------------------
+
+local function send(s, mtype, msgid, seq, ...)
+    if not sessions[s.id] then
         return
     end
-    socket.write_frame(fd, protocol.encode(mtype, msgid, seq, ...))
+    s.write(protocol.encode(mtype, msgid, seq, ...))
 end
 
 local function reply(s, msgid, seq, ok, ...)
-    send(s.fd, TYPE.RESPONSE, msgid, seq, ok, ...)
+    send(s, TYPE.RESPONSE, msgid, seq, ok, ...)
 end
 
 local function notify(s, msgid, ...)
-    send(s.fd, TYPE.NOTIFY, msgid, 0, ...)
+    send(s, TYPE.NOTIFY, msgid, 0, ...)
 end
 
-local function close_session(fd)
-    local s = sessions[fd]
-    if not s then
+local function close_session(s)
+    if not sessions[s.id] then
         return
     end
-    sessions[fd] = nil
-    if s.uid and by_uid[s.uid] == fd then
+    sessions[s.id] = nil
+    if s.uid and by_uid[s.uid] == s.id then
         by_uid[s.uid] = nil
         if session_store then
             session_store.del(s.uid, gateway_name)
         end
     end
-    socket.close(fd)
+    s.close()
+    active_connections = active_connections - 1
+    metrics.set("ccserver_connections_active", active_connections)
+    ratelimit.reset(s.id)
 end
 
 --------------------------------------------------------------------------------
 -- Client command handlers: handler(session, seq, ...args)
--- `seq` is always the second argument, so omitted trailing args cannot shift it.
 --------------------------------------------------------------------------------
 
 local handlers = {}
@@ -96,7 +99,7 @@ function handlers.HELLO(s, seq, client_version)
     if client_version ~= protocol.VERSION then
         reply(s, MSG.HELLO_ACK, seq, false,
             string.format("unsupported protocol version %s (server=%d)", tostring(client_version), protocol.VERSION))
-        close_session(s.fd)
+        close_session(s)
         return
     end
     s.ver = client_version
@@ -128,7 +131,7 @@ function handlers.ENTER(s, seq, token, zone)
         return
     end
 
-    zone = zone or 1
+    zone = tonumber(zone) or zone or 1
     local world_name = worlds[zone]
     if not world_name then
         reply(s, MSG.ENTER, seq, false, "no world for zone " .. tostring(zone))
@@ -141,29 +144,24 @@ function handlers.ENTER(s, seq, token, zone)
         if prev and prev.gateway and prev.gateway ~= gateway_name then
             pcall(function() router.call(prev.gateway, "kick", auth.uid) end)
         end
-        session_store.set(auth.uid, {
-            gateway = gateway_name,
-            node = gateway_node,
-            zone = zone,
-            ts = os.time(),
-        })
+        session_store.set(auth.uid, { gateway = gateway_name, node = gateway_node, zone = zone, ts = os.time() })
     end
 
     -- 顶号: kick any existing local session bound to this uid.
-    local old = by_uid[auth.uid]
-    if old and old ~= s.fd then
-        local old_s = sessions[old]
-        if old_s then
-            notify(old_s, MSG.KICK, "account logged in elsewhere")
+    local old_id = by_uid[auth.uid]
+    if old_id and old_id ~= s.id then
+        local old = sessions[old_id]
+        if old then
+            notify(old, MSG.KICK, "account logged in elsewhere")
+            close_session(old)
         end
-        close_session(old)
     end
 
     s.uid = auth.uid
     s.token = token
     s.zone = zone
     s.world = world_name
-    by_uid[auth.uid] = s.fd
+    by_uid[auth.uid] = s.id
 
     local lobby = router.call("lobby", "enter", auth.uid)
     local world = router.call(world_name, "enter", auth.uid, zone)
@@ -185,50 +183,21 @@ function handlers.PING(s, seq)
 end
 
 --------------------------------------------------------------------------------
--- Socket plumbing
+-- Dispatch (transport-agnostic)
 --------------------------------------------------------------------------------
 
-local function on_accept(fd, addr)
-    if draining then
-        socket.close(fd)
-        return
-    end
-    sessions[fd] = { fd = fd, addr = addr, ver = nil, uid = nil }
-    active_connections = active_connections + 1
-    metrics.inc("ccserver_connections_total")
-    metrics.set("ccserver_connections_active", active_connections)
-    socket.start_read_frame(fd)
-end
-
-local function on_close(fd)
-    local s = sessions[fd]
-    if s and s.uid and by_uid[s.uid] == fd then
-        by_uid[s.uid] = nil
-    end
-    if s then
-        active_connections = active_connections - 1
-        metrics.set("ccserver_connections_active", active_connections)
-        ratelimit.reset("fd:" .. fd)
-    end
-    sessions[fd] = nil
-end
-
-local function on_message(fd, buf)
-    local s = sessions[fd]
-    if not s then
-        return
-    end
-    local msg, err = protocol.decode(buffer.unpack(buf, "Z"))
+local function handle_body(s, body)
+    local msg, err = protocol.decode(body)
     if not msg then
         notify(s, MSG.ERROR, err)
-        close_session(fd)
+        close_session(s)
         return
     end
     if msg.type ~= TYPE.REQUEST then
         return
     end
 
-    if not ratelimit.allow("fd:" .. fd, rate_per_sec, rate_burst) then
+    if not ratelimit.allow(s.id, rate_per_sec, rate_burst) then
         metrics.inc("ccserver_rate_limited_total")
         reply(s, MSG.ERROR, msg.seq, false, "rate limited")
         return
@@ -245,9 +214,6 @@ local function on_message(fd, buf)
     local label = handler and name or route.name
     metrics.inc("ccserver_client_messages_total", 1, { msgid = label })
 
-    -- Handlers may yield (they route to backend services). The socket message
-    -- callback itself must not yield, so run the handler in its own coroutine.
-    -- `seq` is passed as the 2nd arg; `table.unpack` stays last so it expands.
     local args = msg.args
     local mseq = msg.seq
     local msgid = msg.msgid
@@ -262,7 +228,6 @@ local function on_message(fd, buf)
         elseif not s.uid then
             reply(s, MSG.ERROR, mseq, false, "not entered")
         else
-            -- Module message: auto-forward to the owning service command.
             packed = table.pack(xpcall(function()
                 local r = table.pack(router.call(route.service, route.cmd, s.uid, table.unpack(args, 1, args.n)))
                 if r[1] == false then
@@ -282,18 +247,98 @@ local function on_message(fd, buf)
     end)
 end
 
+--------------------------------------------------------------------------------
+-- TCP transport
+--------------------------------------------------------------------------------
+
+local function tcp_accept(fd, addr)
+    if draining then
+        socket.close(fd)
+        return
+    end
+    local s = {
+        id = "t" .. fd,
+        addr = addr,
+        write = function(b) socket.write_frame(fd, b) end,
+        close = function() socket.close(fd) end,
+    }
+    sessions[s.id] = s
+    active_connections = active_connections + 1
+    metrics.inc("ccserver_connections_total")
+    metrics.set("ccserver_connections_active", active_connections)
+    socket.start_read_frame(fd)
+end
+
+local function tcp_on_message(fd, buf)
+    local s = sessions["t" .. fd]
+    if s then
+        handle_body(s, buffer.unpack(buf, "Z"))
+    end
+end
+
+local function tcp_on_close(fd)
+    local s = sessions["t" .. fd]
+    if s then
+        close_session(s)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- WebSocket transport
+--------------------------------------------------------------------------------
+
+local function ws_conn_loop(conn)
+    local s = {
+        id = "w" .. conn.id,
+        addr = conn.addr,
+        write = function(b) conn:write(b) end,
+        close = function() conn:close() end,
+    }
+    sessions[s.id] = s
+    active_connections = active_connections + 1
+    metrics.inc("ccserver_connections_total")
+    metrics.set("ccserver_connections_active", active_connections)
+
+    while not draining do
+        local data, kind = conn:read()
+        if not data or kind == "c" then
+            break
+        end
+        if kind == "b" or kind == "t" then
+            handle_body(s, data)
+        end
+    end
+    if sessions[s.id] then
+        close_session(s)
+    end
+end
+
+local function ws_accept_loop(listener_fd)
+    moon.async(function()
+        while not draining do
+            local conn = websocket.accept(listener_fd)
+            if conn then
+                moon.async(function() ws_conn_loop(conn) end)
+            end
+        end
+    end)
+end
+
+--------------------------------------------------------------------------------
+-- Service
+--------------------------------------------------------------------------------
+
 service.run({
     name = "gateway",
     commands = {
-        -- Internal: another gateway asks this one to kick a uid (cross-gateway 顶号).
         kick = function(_, uid)
-            local fd = by_uid[uid]
-            if fd then
-                local s = sessions[fd]
+            local id = by_uid[uid]
+            if id then
+                local s = sessions[id]
                 if s then
                     notify(s, MSG.KICK, "account logged in elsewhere")
+                    close_session(s)
                 end
-                close_session(fd)
                 return true
             end
             return false, "not online here"
@@ -305,8 +350,6 @@ service.run({
         client_routes = self.client and self.client.routes or nil
         protocol.set_codec(self.codec or "seri")
 
-        -- Shared session store: default to memory, upgrade to Redis async (a
-        -- Redis connect yields, which is not allowed during actor init).
         local sc = self.config.session or {}
         session_store = session.memory()
         if sc.redis_url then
@@ -331,19 +374,31 @@ service.run({
         drain_grace_ms = tonumber(self.config.drain_grace_ms) or drain_grace_ms
         worlds = self.config.worlds or { [1] = self.config.world or "world" }
 
-        socket.on("message", on_message)
-        socket.on("close", on_close)
+        -- TCP
+        socket.on("message", tcp_on_message)
+        socket.on("close", tcp_on_close)
         local addr = self.config.addr or os.getenv("CCS_GATEWAY_ADDR") or "0.0.0.0:9001"
-        local fd, err = socket.listen(addr, on_accept, { max_connections = 100000 })
+        local fd, err = socket.listen(addr, tcp_accept, { max_connections = 100000 })
         if not fd then
-            error("gateway: listen failed on " .. addr .. ": " .. tostring(err))
+            error("gateway: tcp listen failed on " .. addr .. ": " .. tostring(err))
         end
         self.listen_fd = fd
+
+        -- WebSocket (for WeChat mini-games / browsers)
+        local ws_addr = self.config.ws_addr or os.getenv("CCS_GATEWAY_WS_ADDR")
+        if ws_addr then
+            local wfd = websocket.listen(ws_addr, { max_connections = 100000 })
+            if not wfd then
+                error("gateway: ws listen failed on " .. ws_addr)
+            end
+            self.ws_listen_fd = wfd
+            ws_accept_loop(wfd)
+            moon.info("gateway ws listening on " .. ws_addr)
+        end
+
         moon.info(string.format("gateway listening on %s (rate=%d/s burst=%d)", addr, rate_per_sec, rate_burst))
     end,
     on_stop = function(self)
-        -- Graceful drain: stop accepting, let in-flight requests settle, then
-        -- close remaining client connections.
         draining = true
         if self.listen_fd then
             socket.close(self.listen_fd)
@@ -353,8 +408,8 @@ service.run({
         if drain_grace_ms > 0 and active_connections > 0 then
             moon.sleep(drain_grace_ms)
         end
-        for fd in pairs(sessions) do
-            socket.close(fd)
+        for _, s in pairs(sessions) do
+            s.close()
         end
         sessions = {}
         by_uid = {}

@@ -69,6 +69,7 @@ test-db: ## Run database integration tests (needs local deps)
 test-lua: ## Run Lua integration tests that need no external services
 	./target/release/moon_rs assets/test/test_topology.lua
 	./target/release/moon_rs assets/test/test_gateway.lua
+	./target/release/moon_rs assets/test/test_gateway_ws.lua
 	./target/release/moon_rs assets/test/test_sharding.lua
 	./target/release/moon_rs assets/test/test_failover.lua
 	./target/release/moon_rs assets/test/test_module_messages.lua

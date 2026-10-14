@@ -37,6 +37,7 @@ phase: M6
 - [x] **模块化消息**：拓扑里模块声明 `client = { msg = cmd }`；`protocol.build` 确定性分配 msgid（≥1000，组→逻辑名，去重）；网关自动转发到服务命令；admin `/messages`；`test_module_messages` 实测通过。
 - [x] **客户端协议库 `sdk/ccsclient`**：Rust 帧+编解码（对齐协议），传输由宿主提供；`native` TCP + `wasm` 导出（微信小游戏 JS 持 socket）；wasm32/iOS/Android/Windows 目标编译通过，单测 4/4。
 - [x] **对外协议 payload 可切换**：`protocol.set_codec("seri"|"json"|"raw")`（拓扑 `protocol.codec`/env）；客户端 `ccsclient` 增 `json` 特征；`test_protocol_codec` 实测通过。
+- [x] **WebSocket 传输**：网关传输无关（TCP + WS 同一套处理器，`ws_addr`）；`test_gateway_ws` 实测；`ccsclient` 增原生 WS 传输（tungstenite）+ 分帧模式 + protobuf 示例；`examples/ws_client.rs` 对 app 实测通过。
 - [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_sharding`、`test_failover`、`test_multinode`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
 
 ## 阻塞项

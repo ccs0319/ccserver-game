@@ -23,6 +23,24 @@ payload = seri.packstring(...)     -- binary codec (swap for protobuf later)
 | `seq` | client-assigned request sequence; RESPONSE echoes it for correlation |
 | `payload` | codec-encoded Lua values |
 
+## Transports: TCP & WebSocket
+
+The gateway accepts both, with the **same protocol and handlers** (transport is
+abstracted per session):
+
+| Transport | Framing | Client |
+| --- | --- | --- |
+| TCP | `[2-byte BE length][body]` (runtime frame protocol) | native clients |
+| WebSocket | one **body** per WS binary message (WS already delimits) | WeChat mini-game (`wx.connectSocket`), browsers |
+
+- Config: `gateway.config.addr` (TCP) and `gateway.config.ws_addr` (WebSocket),
+  or env `CCS_GATEWAY_ADDR` / `CCS_GATEWAY_WS_ADDR`.
+- WeChat/browsers **must** use WebSocket (`wss://`); WASM cannot open sockets, so
+  the JS side owns the socket and only uses `sdk/ccsclient` (WASM) for
+  encode/decode.
+- Over WebSocket the length prefix is **not** used — send `encode_body(msg)`
+  directly; the server feeds each WS message to the same dispatcher.
+
 ## Payload codec
 
 The body's `payload` bytes are produced by a **pluggable codec** (topology

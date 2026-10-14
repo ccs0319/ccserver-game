@@ -21,8 +21,8 @@ body  = [version: u8][type: u8][msgid: u16 BE][seq: u32 BE][payload...]
 
 - **JSON**（`feature = "json"`）：`codec::json::encode_args(&args)` / `decode_args::<T>(bytes)`，
   与服务器 `protocol = { codec = "json" }` 对齐（服务器把参数编成 JSON 数组）。
-- **protobuf**：用你 `prost` 生成的类型，`msg.encode_to_vec()` 直接当 payload 字节即可
-  （服务器用 `protocol = { codec = "raw" }`，payload 原样透传，由服务按 schema 解码）。
+- **protobuf**（`feature = "proto"`）：`proto` 模块用 `prost` derive 演示（无需 protoc）；用你生成的
+  `encode_to_vec()` 字节当 payload，服务器用 `protocol = { codec = "raw" }` 原样透传、由服务按 schema 解码。
 - **seri**：仅当客户端也在 Lua 运行时才有意义，跨语言不建议。
 
 > 服务器对外协议编解码可切换：`protocol = { codec = "seri" | "json" | "raw" }`（见 `docs/protocol.md`）。
@@ -62,6 +62,22 @@ cargo build --release --target x86_64-pc-windows-msvc   # Windows
 ```
 
 产物是 `cdylib`/`staticlib`，可通过 JNI / Swift / C ABI 暴露给各平台原生层。
+
+### 原生 WebSocket（`feature = "ws"`）
+
+微信小游戏走 WebSocket，原生端也可以用同一路径（`wss://` 由 rustls 支持）。WebSocket 自带消息边界，
+用 `Client::new_message`（每个 WS 消息 = 一个 body，不再加长度前缀）：
+
+```rust
+use ccsclient::{Client, ws::WsTransport};
+let transport = WsTransport::connect("wss://game.example.com/ws")?;
+let mut client = Client::new_message(transport);
+```
+
+完整可运行示例：`examples/ws_client.rs`（对运行中的 app 实测通过）。
+
+> 服务端需要开 WebSocket 网关：拓扑里 `gateway.config.ws_addr`（或 env `CCS_GATEWAY_WS_ADDR`），
+> 见 `docs/protocol.md`。
 
 ## 微信小游戏（WASM + JS 持有 socket）
 

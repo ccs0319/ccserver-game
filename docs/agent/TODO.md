@@ -26,6 +26,7 @@
 - [x] **模块化消息**：拓扑声明 `client` + `protocol.build` 自动分配 msgid + 网关自动转发 + admin `/messages`；`test_module_messages`。
 - [x] **客户端协议库**：`sdk/ccsclient`（Rust，帧+编解码；原生 TCP + WASM/微信）。
 - [x] **对外协议 payload 可切换**：seri/json/raw + 客户端 json 特征。
+- [x] **WebSocket 传输**：网关 TCP+WS 同一套处理器；客户端 `ws` 传输 + protobuf 示例。
 - [ ] 多节点压测与长稳测试。
 
 ## P1 — 工程化
