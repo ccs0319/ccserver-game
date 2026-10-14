@@ -71,6 +71,7 @@ test-lua: ## Run Lua integration tests that need no external services
 	./target/release/moon_rs assets/test/test_gateway.lua
 	./target/release/moon_rs assets/test/test_sharding.lua
 	./target/release/moon_rs assets/test/test_failover.lua
+	./target/release/moon_rs assets/test/test_module_messages.lua
 	./target/release/moon_rs assets/test/test_config.lua
 	./target/release/moon_rs assets/test/test_observability.lua
 	./target/release/moon_rs assets/test/test_reliability.lua

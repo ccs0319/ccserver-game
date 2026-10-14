@@ -23,6 +23,7 @@
 - [x] **多实例与容灾**：`ccserver.router` 服务组（轮询+熔断+failover）；lobby_1/lobby_2；`test_failover` 实测。
 - [x] **工程化**：`CONTRIBUTING.md` + `scripts/smoke.sh`（`make smoke`）。
 - [x] **会话跨网关（gateway 无状态化）**：`ccserver.session`（redis 共享会话）+ 跨网关顶号；`test_session` 实测。
+- [x] **模块化消息**：拓扑声明 `client` + `protocol.build` 自动分配 msgid + 网关自动转发 + admin `/messages`；`test_module_messages`。
 - [ ] 多节点压测与长稳测试。
 
 ## P1 — 工程化

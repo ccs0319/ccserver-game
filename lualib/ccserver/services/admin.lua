@@ -61,6 +61,13 @@ local function handle_request(self, req)
         return 200, { ["Content-Type"] = "text/plain; version=0.0.4" }, merge_metrics(texts)
     elseif path == "/stats" then
         return 200, { ["Content-Type"] = "application/json" }, moon.server_stats()
+    elseif path == "/messages" then
+        -- Module client-message map: msgid -> "service.msg" (for client codegen).
+        local out = {}
+        for id, name in pairs((self.client and self.client.names) or {}) do
+            out[tostring(id)] = name
+        end
+        return 200, { ["Content-Type"] = "application/json" }, json.encode(out)
     end
     return 404, { ["Content-Type"] = "text/plain" }, "not found\n"
 end

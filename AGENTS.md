@@ -1,9 +1,9 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 1.4.1
+version: 1.5.0
 status: stable
-last_updated: 2026-10-13
+last_updated: 2026-10-14
 upstream_repo: https://github.com/sniper00/moon_rs
 upstream_baseline: 272c9b8f035decd60bf3cb4e4930c75eb0f47217
 upstream_sync: rebase our delta onto upstream/main (scripts/update-upstream.sh)
@@ -251,6 +251,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-14 | 1.5.0 | 模块化消息：模块在拓扑声明 `client = { <客户端消息> = <命令> }`，`protocol.build` 确定性分配 msgid（≥1000，组→逻辑名，去重），网关自动转发 `router.call(service, cmd, uid, ...)`；admin `/messages` 暴露消息表；`test_module_messages`（实测通过）；`docs/protocol.md` + `learn/11` 更新。 |
 | 2026-10-13 | 1.4.1 | `learn/` 在流程教程内嵌「名词→代码对象」对照：02（节点/actor/service/实例/组/拓扑/router/cluster/dispatch 逐词落到代码）、04（服务/实例/组/节点对应对象）、05（拓扑各段对应对象）。 |
 | 2026-10-13 | 1.4.0 | 新增 `learn/` 学习路线（客户端程序员 → 游戏服务器，入门到精通，12 篇：思维差异/请求链路/并发/Actor 与 Service/拓扑/消息协议/状态会话/多进程/数据/可靠性/精通/术语与代码地图）。 |
 | 2026-10-13 | 1.3.0 | 会话跨网关（gateway 无状态化）：`ccserver.session`（memory/redis 共享会话所有权）；gateway ENTER 读写共享会话并**跨网关顶号**（`router.call(prev.gateway,"kick",uid)`）；`test_session` 实测通过（需 Redis）。 |

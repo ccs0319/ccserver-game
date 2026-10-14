@@ -17,6 +17,7 @@
 local moon = require("moon")
 local router = require("ccserver.router")
 local topology = require("ccserver.topology")
+local protocol = require("ccserver.protocol")
 
 local M = {}
 
@@ -76,6 +77,7 @@ function M.start(cfg, node_id)
 
     local routing = topology.service_nodes(cfg)
     local groups = topology.groups(cfg)
+    local client = protocol.build(cfg)   -- module client-message map (deterministic)
     router.configure({ node_id = node_id, services = routing, groups = groups })
 
     local handles = {}
@@ -88,6 +90,7 @@ function M.start(cfg, node_id)
             service = spec.name,
             routing = routing,
             groups = groups,
+            client = client,
             config = spec.config,
         })
         if not id or id == 0 then

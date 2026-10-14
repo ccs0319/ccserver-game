@@ -239,6 +239,20 @@
 - Consequences: 跨网关/跨进程顶号成立（`test_session` 实测，需 Redis）；客户端可重连到任意网关（token 无状态，重发 ENTER）。
   gateway 对会话只保留连接（fd），属主信息外置，为无状态化铺路。注意 redis 连接名与 init 内不可 yield 的约束。
 
+## ADR-022: 模块化客户端消息（拓扑声明 + 网关自动转发）
+
+- Date: 2026-10-14
+- Status: Accepted
+- Context: 新模块的客户端消息原先要改两个中心文件（`protocol.MSG` 消息号表 + gateway `handlers`），
+  模块不内聚、多人易冲突。
+- Decision: 模块在拓扑里声明 `client = { <客户端消息> = <命令> }`；`protocol.build(cfg)` 按**确定性顺序**
+  （逻辑名排序、消息名排序）从 **1000** 起分配 msgid（内建消息占 1–99）；若声明服务在**组**中，
+  路由指向**逻辑组名**并去重；网关对模块 msgid **自动转发** `router.call(service, cmd, uid, ...)`，
+  无 per-message 处理器；`admin /messages` 暴露 id→名 供客户端取用。
+- Consequences: 加模块 = 加服务文件 + 拓扑声明（不动 protocol/gateway 中心文件）；所有节点消息号一致。
+  注意：转发到组会负载均衡 → 命令须无状态；传给服务的结构避免点键（`print_r` 序列化限制）。
+
+
 
 
 

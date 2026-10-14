@@ -115,6 +115,43 @@ gateway = { source = "ccserver.services.gateway", unique = true,
             config = { addr = "0.0.0.0:9001" } },
 ```
 
+## Module messages (self-contained modules)
+
+Adding a new module's client messages should be **one place**, not edits to a
+central registry + the gateway. A service declares its client messages in the
+topology; the framework assigns deterministic msgids and the gateway
+auto-forwards to the owning service command — no per-message gateway handler.
+
+```lua
+-- topology
+lobby_1 = { source = "ccserver.services.lobby", unique = true,
+            client = { get = "get", leave = "leave" } },   -- client msg -> command
+groups  = { lobby = { "lobby_1", "lobby_2" } },
+```
+
+```lua
+-- the service just implements the commands (business stays in the module)
+local commands = {}
+function commands.get(self, uid) ... end
+function commands.leave(self, uid) ... end
+service.run({ name = "lobby", commands = commands }, ...)
+```
+
+- `protocol.build(cfg)` assigns ids to `"<logical>.<msg>"` in a **deterministic
+  order** (logical names sorted, messages sorted) → all nodes agree. Module
+  messages start at id **1000** (built-ins use 1–99).
+- If the declaring service is in a **group**, the route targets the **group name**
+  (load-balanced); declaring the same message on several instances is de-duped.
+- The gateway requires a bound session (ENTER) and forwards
+  `router.call(service, cmd, uid, ...args)`; the response echoes the request msgid.
+- Client code can fetch the id map from the admin service: `GET /messages` →
+  `{ "1000": "lobby.get", ... }`.
+
+> **Stateful caveat:** a module message routed to a **group** is load-balanced
+> across instances, so its command must be stateless (or read shared state, e.g.
+> Redis). Per-instance state (like an in-memory session table) is not visible on
+> another instance — don't round-robin a stateful command.
+
 ## Testing
 
 `assets/test/test_gateway.lua` boots a node and drives it as a real TCP client:

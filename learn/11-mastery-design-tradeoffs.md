@@ -48,6 +48,22 @@ service.run({ name = "xxx", commands = commands, on_start = ..., on_stop = ... }
 
 > 记住：**服务间只能用消息**，不能 `require` 另一个服务直接调它的内存。
 
+### 想让客户端也能调这个模块？声明它的客户端消息即可
+
+不用改网关，也不用手写消息号——在拓扑里声明"客户端消息 → 本服务命令"：
+
+```lua
+-- topology
+friend = { source = "services.friend", unique = true,
+           client = { add = "add", list = "list" } },   -- 客户端消息 -> 命令
+```
+
+框架会**自动分配消息号**（从 1000 起，所有节点一致），网关收到就**自动转发**
+`router.call("friend", "add", uid, ...)`——你只写服务的 `commands`。
+
+- 消息号表可从 admin 拉：`curl localhost:9002/messages`。
+- 若该服务在**组**里，会自动按组负载均衡；**所以命令要无状态**（有状态命令别放进组，否则不同实例看不到彼此的内存）。
+
 ## 4. 怎么分片（world_1..N）
 
 1. 服务脚本读取自己的分片配置（如 `self.config.zone`）。

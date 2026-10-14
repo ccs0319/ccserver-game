@@ -34,6 +34,7 @@ phase: M6
 - [x] **多实例与容灾**：`ccserver.router` 服务组（轮询 + 熔断 + failover）；lobby 多实例（lobby_1/lobby_2）；`test_failover` 实测通过。
 - [x] **会话跨网关（无状态化）**：`ccserver.session`（memory/redis 共享会话所有权）；gateway ENTER 读写共享会话并跨网关顶号（`router.call(prev.gateway,"kick",uid)`）；`test_session` 实测通过（需 Redis）。
 - [x] **工程化**：`CONTRIBUTING.md`；`scripts/smoke.sh`（`make smoke` 端到端）。
+- [x] **模块化消息**：拓扑里模块声明 `client = { msg = cmd }`；`protocol.build` 确定性分配 msgid（≥1000，组→逻辑名，去重）；网关自动转发到服务命令；admin `/messages`；`test_module_messages` 实测通过。
 - [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_sharding`、`test_failover`、`test_multinode`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
 
 ## 阻塞项
@@ -50,6 +51,10 @@ phase: M6
   每实例用独立名（如 `gw_session_<service>`）。
 - **actor init 内不可 yield**：service 的 `on_start` 在 C 调用链中执行，若其中直接 `moon.wait`（如 redis connect）
   会报 "cannot resume dead coroutine"；需 `moon.async` 派生协程做异步初始化。
+- **`new_service` 参数序列化**：参数经 `print_r` 转成 Lua 字面量，**带点的字符串键（如 `["a.b"]`）会写成非法 Lua**；
+  传给服务的数据结构避免点键（`protocol.build` 的 `ids` 用嵌套 `ids[service][msg]`）。
+- **组=负载均衡**：模块消息/服务调用若路由到**组**，会在实例间轮询；**有状态命令不能放进组**
+  （各实例内存独立），有状态逻辑要么单实例、要么外置共享（Redis）。
 - **socket 回调内不可 yield**：消息回调协程被池化，处理器需 `moon.async` 派生协程后再 `moon.call`。
 - **服务是独立 actor（各自 lua_State）**：`cluster` 模块的 `NODE` 是 per-state 值，服务内不可依赖它做本地判断。  `ccserver.router` 采用**本地优先**：按 `service_nodes` 映射比较自身 node，本地走 `moon.call`，远程才走 `cluster.call`。
   服务通过 `new_service` 的 `routing`/`node` 参数获得映射并 `router.configure`。

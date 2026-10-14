@@ -43,6 +43,7 @@ function Service.new(name, conf)
         conf = conf or {},
         node = type(conf) == "table" and conf.node or nil,
         config = type(conf) == "table" and conf.config or {},
+        client = type(conf) == "table" and conf.client or nil,
     }, Service)
 end
 

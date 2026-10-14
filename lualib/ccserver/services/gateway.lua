@@ -45,6 +45,9 @@ local draining = false
 -- zone -> world shard service name; overridable via config.worlds.
 local worlds = { [1] = "world" }
 
+-- Module client-message routing table (id -> {service, cmd, name}); set in on_start.
+local client_routes
+
 metrics.counter("ccserver_connections_total", "Client connections accepted")
 metrics.gauge("ccserver_connections_active", "Currently open client connections")
 metrics.counter("ccserver_client_messages_total", "Client messages handled")
@@ -233,26 +236,44 @@ local function on_message(fd, buf)
 
     local name = protocol.msg_name(msg.msgid)
     local handler = name and handlers[name]
-    if not handler then
+    local route = (not handler) and client_routes and client_routes[msg.msgid] or nil
+    if not handler and not route then
         metrics.inc("ccserver_errors_total")
         reply(s, MSG.ERROR, msg.seq, false, "unknown msgid: " .. tostring(msg.msgid))
         return
     end
-    metrics.inc("ccserver_client_messages_total", 1, { msgid = name })
+    local label = handler and name or route.name
+    metrics.inc("ccserver_client_messages_total", 1, { msgid = label })
 
     -- Handlers may yield (they route to backend services). The socket message
     -- callback itself must not yield, so run the handler in its own coroutine.
     -- `seq` is passed as the 2nd arg; `table.unpack` stays last so it expands.
     local args = msg.args
     local mseq = msg.seq
+    local msgid = msg.msgid
     moon.async(function()
         local tid = trace.start()
         local started = moon.clock()
-        local packed = table.pack(xpcall(function()
-            return handler(s, mseq, table.unpack(args, 1, args.n))
-        end, debug.traceback))
-        metrics.observe("ccserver_client_request_seconds", moon.clock() - started, { msgid = name })
-        if not packed[1] then
+        local packed
+        if handler then
+            packed = table.pack(xpcall(function()
+                return handler(s, mseq, table.unpack(args, 1, args.n))
+            end, debug.traceback))
+        elseif not s.uid then
+            reply(s, MSG.ERROR, mseq, false, "not entered")
+        else
+            -- Module message: auto-forward to the owning service command.
+            packed = table.pack(xpcall(function()
+                local r = table.pack(router.call(route.service, route.cmd, s.uid, table.unpack(args, 1, args.n)))
+                if r[1] == false then
+                    reply(s, msgid, mseq, false, r[2])
+                else
+                    reply(s, msgid, mseq, true, table.unpack(r, 1, r.n))
+                end
+            end, debug.traceback))
+        end
+        metrics.observe("ccserver_client_request_seconds", moon.clock() - started, { msgid = label })
+        if packed and not packed[1] then
             metrics.inc("ccserver_errors_total")
             moon.error(string.format("[trace %s] gateway handler error: %s", tid, tostring(packed[2])))
             reply(s, MSG.ERROR, mseq, false, tostring(packed[2]))
@@ -281,6 +302,7 @@ service.run({
     on_start = function(self)
         gateway_name = self.name
         gateway_node = self.node
+        client_routes = self.client and self.client.routes or nil
 
         -- Shared session store: default to memory, upgrade to Redis async (a
         -- Redis connect yields, which is not allowed during actor init).
