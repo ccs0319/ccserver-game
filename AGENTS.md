@@ -1,7 +1,7 @@
 # AGENTS.md — ccserver 开发指南（自更新）
 
 <!-- agent-meta
-version: 1.5.0
+version: 1.6.0
 status: stable
 last_updated: 2026-10-14
 upstream_repo: https://github.com/sniper00/moon_rs
@@ -123,6 +123,7 @@ docker-compose.yml# 本地依赖：Redis / MySQL / PostgreSQL / MongoDB
 Makefile          # 开发任务入口（make help）
 docs/             # 模块文档；docs/agent/ 为 agent 记忆层
 learn/            # 面向新人的学习路线（客户端程序员 → 游戏服务器，入门到精通）
+sdk/ccsclient/    # 跨平台客户端协议库（Rust；帧+编解码，传输由宿主提供：原生 TCP / 微信小游戏 WASM+JS）
 ```
 
 ---
@@ -251,6 +252,7 @@ scripts/update-upstream.sh                 # 同步上游 moon_rs（fetch + reba
 
 | 日期 | 版本 | 摘要 |
 | --- | --- | --- |
+| 2026-10-14 | 1.6.0 | 新增跨平台客户端协议库 `sdk/ccsclient`（Rust）：帧+编解码（对齐 `ccserver/protocol.lua`），传输由宿主提供；原生 TCP（`native`）+ WASM 导出（`wasm`，供微信小游戏 JS 持 socket）；已验证 wasm32/iOS/Android/Windows 目标可编译，单测 4/4；`sdk/README.md` + 微信 JS 示例。 |
 | 2026-10-14 | 1.5.0 | 模块化消息：模块在拓扑声明 `client = { <客户端消息> = <命令> }`，`protocol.build` 确定性分配 msgid（≥1000，组→逻辑名，去重），网关自动转发 `router.call(service, cmd, uid, ...)`；admin `/messages` 暴露消息表；`test_module_messages`（实测通过）；`docs/protocol.md` + `learn/11` 更新。 |
 | 2026-10-13 | 1.4.1 | `learn/` 在流程教程内嵌「名词→代码对象」对照：02（节点/actor/service/实例/组/拓扑/router/cluster/dispatch 逐词落到代码）、04（服务/实例/组/节点对应对象）、05（拓扑各段对应对象）。 |
 | 2026-10-13 | 1.4.0 | 新增 `learn/` 学习路线（客户端程序员 → 游戏服务器，入门到精通，12 篇：思维差异/请求链路/并发/Actor 与 Service/拓扑/消息协议/状态会话/多进程/数据/可靠性/精通/术语与代码地图）。 |

@@ -1,0 +1,27 @@
+[package]
+name = "ccsclient"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform client protocol library for ccserver (framing + codec; transport provided by the host)"
+license = "MIT"
+publish = false
+
+# Standalone crate: opt out of the server workspace so it builds independently
+# and for targets the server workspace doesn't.
+[workspace]
+
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[features]
+default = ["std"]
+# `std` is required for the native TCP transport and for Vec/String conveniences.
+std = []
+# Native TCP transport (macOS / Windows / iOS / Android desktop & mobile).
+native = ["std"]
+# WebAssembly exports for hosts that own the socket (e.g. WeChat mini-game JS).
+wasm = ["dep:wasm-bindgen", "dep:js-sys"]
+
+[dependencies]
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }

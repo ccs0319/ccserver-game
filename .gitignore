@@ -2,6 +2,11 @@
 /clib
 .extensions
 
+# standalone client SDK build artifacts
+/sdk/ccsclient/target
+/sdk/ccsclient/dist
+/sdk/ccsclient/pkg
+
 # runtime artifacts (scripts/start.sh)
 /run
 /logs

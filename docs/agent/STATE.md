@@ -35,6 +35,7 @@ phase: M6
 - [x] **会话跨网关（无状态化）**：`ccserver.session`（memory/redis 共享会话所有权）；gateway ENTER 读写共享会话并跨网关顶号（`router.call(prev.gateway,"kick",uid)`）；`test_session` 实测通过（需 Redis）。
 - [x] **工程化**：`CONTRIBUTING.md`；`scripts/smoke.sh`（`make smoke` 端到端）。
 - [x] **模块化消息**：拓扑里模块声明 `client = { msg = cmd }`；`protocol.build` 确定性分配 msgid（≥1000，组→逻辑名，去重）；网关自动转发到服务命令；admin `/messages`；`test_module_messages` 实测通过。
+- [x] **客户端协议库 `sdk/ccsclient`**：Rust 帧+编解码（对齐协议），传输由宿主提供；`native` TCP + `wasm` 导出（微信小游戏 JS 持 socket）；wasm32/iOS/Android/Windows 目标编译通过，单测 4/4。
 - [x] 测试（实测通过）：`test_db_stack`、`test_migration`、`test_hotreload`、`test_topology`、`test_gateway`、`test_sharding`、`test_failover`、`test_multinode`、`test_config`、`test_observability`、`test_reliability`；`cargo test --workspace` 210 passed。
 
 ## 阻塞项

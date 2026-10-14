@@ -252,6 +252,21 @@
 - Consequences: 加模块 = 加服务文件 + 拓扑声明（不动 protocol/gateway 中心文件）；所有节点消息号一致。
   注意：转发到组会负载均衡 → 命令须无状态；传给服务的结构避免点键（`print_r` 序列化限制）。
 
+## ADR-023: 客户端库只做协议编解码，传输由宿主提供（微信走 JS socket）
+
+- Date: 2026-10-14
+- Status: Accepted
+- Context: 需要一套跨 macOS/Windows/iOS/Android/微信小游戏的客户端底层库。微信小游戏网络**必须**走
+  自有 API（`wx.connectSocket`/`wx.createTCPSocket`），且 **WASM 无法直接开 socket**；不同平台传输方式不同。
+- Decision: `sdk/ccsclient`（Rust）**只负责帧 + 协议编解码**（对齐 `ccserver/protocol.lua`），
+  `payload` 为不透明字节；传输抽象为 `Transport`：原生用内置 TCP（`native`），
+  微信/浏览器编译为 WASM（`wasm`）由 **JS 持有 socket**（`wx.connectSocket`）并调用导出的
+  `encode_request`/`Decoder`。独立 Cargo workspace（`[workspace]` 自持，不与服务器工作区耦合）。
+- Consequences: 一套 Rust 逻辑覆盖全部目标（已验证 wasm32/iOS/Android/Windows 可编译）；微信网络限制
+  （域名白名单、5 连接上限）由宿主遵守。局限：payload 编解码留给宿主（当前服务器用 seri，需对齐或切换为
+  JSON/protobuf）；重连/心跳策略未封装。
+
+
 
 
 
